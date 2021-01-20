@@ -1,0 +1,176 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CS144 Ⅳ Congestion Control | XonLab</title><meta name="description" content="在网络传输的过程中，拥塞是不可避免的。因为packet switching只负责尽可能的发包，而不去管链路的拥挤情况。如果出现了拥塞则排队中的包会进入Buffer，Buffer满后会丢弃并要求重传，这一是浪费了这个包传输过来所使用的链路资源，二是会进一步加剧拥塞。此时，就需要拥塞控制，来尽可能地避免重传。拥塞控制的设计目标有以下几点：  高吞吐量：尽可能高效的利用链路 公平性：确保所有flow在进"><meta name="keywords" content="网络"><meta name="author" content="PhenoGao"><meta name="copyright" content="PhenoGao"><meta name="format-detection" content="telephone=no"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://xonlab.com/2021/01/15/CS144%20%E2%85%A3%20Congestion%20Control/"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin="crossorigin"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><meta property="og:type" content="article"><meta property="og:title" content="CS144 Ⅳ Congestion Control"><meta property="og:url" content="http://xonlab.com/2021/01/15/CS144%20%E2%85%A3%20Congestion%20Control/"><meta property="og:site_name" content="XonLab"><meta property="og:description" content="在网络传输的过程中，拥塞是不可避免的。因为packet switching只负责尽可能的发包，而不去管链路的拥挤情况。如果出现了拥塞则排队中的包会进入Buffer，Buffer满后会丢弃并要求重传，这一是浪费了这个包传输过来所使用的链路资源，二是会进一步加剧拥塞。此时，就需要拥塞控制，来尽可能地避免重传。拥塞控制的设计目标有以下几点：  高吞吐量：尽可能高效的利用链路 公平性：确保所有flow在进"><meta property="og:image" content="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-3216996.jpg"><meta property="article:published_time" content="2021-01-15T08:25:21.000Z"><meta property="article:modified_time" content="2021-01-20T15:21:40.956Z"><meta name="twitter:card" content="summary"><script>var activateDarkMode = function () {
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000')
+  }
+}
+var activateLightMode = function () {
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fff')
+  }
+}
+
+var getCookies = function (name) {
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop().split(';').shift()
+}
+
+var autoChangeMode = 'false'
+var t = getCookies('theme')
+if (autoChangeMode === '1') {
+  var isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+  var isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+  var isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+  if (t === undefined) {
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport) {
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour <= 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+      if (Cookies.get('theme') === undefined) {
+        e.matches ? activateDarkMode() : activateLightMode()
+      }
+    })
+  } else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode === '2') {
+  now = new Date()
+  hour = now.getHours()
+  isNight = hour <= 6 || hour >= 18
+  if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if (t === 'dark') activateDarkMode()
+  else if (t === 'light') activateLightMode()
+}</script><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><link rel="prev" title="I/O多路复用与epoll" href="http://xonlab.com/2021/01/18/IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8/"><link rel="next" title="Go接口中的动态分发机制" href="http://xonlab.com/2021/01/12/Go%E6%8E%A5%E5%8F%A3%E4%B8%AD%E7%9A%84%E5%8A%A8%E6%80%81%E5%88%86%E5%8F%91%E6%9C%BA%E5%88%B6/"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  bookmark: {
+    message_prev: '按',
+    message_next: '键将本页加入书签'
+  },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  justifiedGallery: {
+    js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+    css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+  },
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  isPhotoFigcaption: false,
+  islazyload: true,
+  isanchor: false    
+}</script><script>var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isSidebar: true
+  }</script><noscript><style>
+#nav {
+  opacity: 1
+}
+.justified-gallery img{
+  opacity: 1
+}
+</style></noscript><meta name="generator" content="Hexo 4.2.1"></head><body><canvas class="fireworks"></canvas><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="https://edu-102.oss-cn-beijing.aliyuncs.com/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">94</div></a></div></div><div class="mobile_data_item is-center">      <div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div><div class="length_num">63</div></a></div></div><div class="mobile_data_item is-center">     <div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div><div class="length_num">7</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div></div></div><i class="fas fa-arrow-right on" id="toggle-sidebar"></i><div id="sidebar"><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#TCP-Congestion-Control"><span class="toc-number">1.</span> <span class="toc-text">TCP Congestion Control</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#AIMD"><span class="toc-number">1.1.</span> <span class="toc-text">AIMD</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AIMD-with-multiple-flows"><span class="toc-number">1.2.</span> <span class="toc-text">AIMD with multiple flows</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TCP-Tahoe"><span class="toc-number">2.</span> <span class="toc-text">TCP Tahoe</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#TCP-Pre-Tahoe"><span class="toc-number">2.1.</span> <span class="toc-text">TCP Pre-Tahoe</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Improvement-of-Tahoe"><span class="toc-number">3.</span> <span class="toc-text">Improvement of Tahoe</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Congestion-window"><span class="toc-number">3.1.</span> <span class="toc-text">Congestion window</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Slow-Start"><span class="toc-number">3.2.</span> <span class="toc-text">Slow Start</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Congestion-avoidance"><span class="toc-number">3.3.</span> <span class="toc-text">Congestion avoidance</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#State-Transitions"><span class="toc-number">3.4.</span> <span class="toc-text">State Transitions</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#TCP-Reno"><span class="toc-number">4.</span> <span class="toc-text">TCP Reno</span></a></li></ol></div></div></div><div id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-3216996.jpg)"><nav id="nav"><span class="pull-left" id="blog_name"><a class="blog_title" id="site-name" href="/">XonLab</a></span><span class="pull-right menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div><span class="toggle-menu close"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></span></span></nav><div id="post-info"><div id="post-title"><div class="posttitle">CS144 Ⅳ Congestion Control</div></div><div id="post-meta"><div class="meta-firstline"><time class="post-meta__date" title="发表于 2021-01-15 16:25:21"><i class="fa-fw far fa-calendar-alt"></i> 发表于 2021-01-15</time></div><div class="meta-secondline"> <span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta__icon"></i><span>字数总计:</span><span class="word-count">1.7k</span><span class="post-meta__separator">|</span><i class="far fa-clock fa-fw post-meta__icon"></i><span>阅读时长: 5 分钟</span></span></div><div class="meta-thirdline"><span class="post-meta-pv-cv"><span class="post-meta__separator">|</span><i class="far fa-eye fa-fw post-meta__icon"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span><span class="post-meta-commentcount"></span></div></div></div></header><main class="layout_post" id="content-inner"><article id="post"><div class="post-content" id="article-container"><p>在网络传输的过程中，拥塞是不可避免的。因为packet switching只负责尽可能的发包，而不去管链路的拥挤情况。如果出现了拥塞则排队中的包会进入Buffer，Buffer满后会丢弃并要求重传，这一是浪费了这个包传输过来所使用的链路资源，二是会进一步加剧拥塞。此时，就需要拥塞控制，来尽可能地避免重传。拥塞控制的设计目标有以下几点：</p>
+<ul>
+<li>高吞吐量：尽可能高效的利用链路</li>
+<li>公平性：确保所有flow在进入瓶颈链路时能被公平对待</li>
+<li>面对变化的网络情况可以快速做出反应</li>
+<li>分布式控制</li>
+</ul>
+<p>TCP的设计思想就是高效的利用链路，在这个思想指导下，TCP连接时丢包重传是必须的，这实际上是一个信号，告诉TCP链路已经到承受能力的极限了，但是要降低重传的概率，这样才能让包高效的被传输到对端。</p>
+<h2 id="TCP-Congestion-Control"><a href="#TCP-Congestion-Control" class="headerlink" title="TCP Congestion Control"></a>TCP Congestion Control</h2><img src = "/images/屏幕截图 2021-01-15 151429.png">
+
+<p>TCP的拥塞控制由终端实现，它由观察到的事件来决定如何做出反应（是否丢包），利用滑动窗口来实现流量控制，并试图找出一个能让所有包都正常传输的流速。</p>
+<img src = "/images/屏幕截图 2021-01-15 152004.png">
+
+<img src = "/images/屏幕截图 2021-01-15 152625.png">
+
+<p>如果一个滑动窗口的长度小于Round-trip time(RTT)那么链路上就会看到一个终端一会发一个包停一会让后再发一个包，这样就不能充分利用链路，一个更好的方式是RTT刚好和滑动窗口的大小一致这样这个窗口的包刚发完就可以发新的包，而TCP的拥塞控制就是在控制这个滑动窗口的大小。</p>
+<img src = "/images/屏幕截图 2021-01-15 152937.png">
+
+<p>具体的公式是</p>
+<ul>
+<li>滑动窗口大小 = min(接收者能接收的窗口大小, 拥塞窗口)</li>
+</ul>
+<p>接受者能接受的窗口大小是显知的，关键就在于如何确定拥塞窗口的大小</p>
+<h3 id="AIMD"><a href="#AIMD" class="headerlink" title="AIMD"></a>AIMD</h3><img src = "/images/屏幕截图 2021-01-15 153422.png">
+
+<p>Additive Increase：如果接受者正确的接受了包并返回了ACK，那么就把发送方就把发送窗口的大小加”1”，对于每一个包它将增加<code>1/w</code>，因为有w个数据包，所以增加”1”。</p>
+<p>Multiplicative Decrease：丢包的时候返回拥塞信号，发送方的窗口随丢包的数量w来减半。</p>
+<img src = "/images/屏幕截图 2021-01-15 154110.png">
+
+<h3 id="AIMD-with-multiple-flows"><a href="#AIMD-with-multiple-flows" class="headerlink" title="AIMD with multiple flows"></a>AIMD with multiple flows</h3><p>当多路传输时AIMD的情况又有所不同</p>
+<img src = "/images/屏幕截图 2021-01-15 162418.png">
+
+<p>图中每个不同颜色的圆点代表不同来源的包，如果刚好有一个包被丢弃了，那该包的发送方将缩小滑动窗口，从整体上看发送的速率将会稍微下降（因为这是多个源在发送）</p>
+<img src = "/images/屏幕截图 2021-01-15 162923.png">
+
+<p>多源的情况下发送速率将是如下公式，p代表丢包概率</p>
+<img src = "/images/屏幕截图 2021-01-15 162956.png">
+
+<p>从公式中可以看出如果源与目标的RTT很大，那么根据AIMD它的发送速率将很慢，这样被认为是AIMD的一个缺点。</p>
+<h2 id="TCP-Tahoe"><a href="#TCP-Tahoe" class="headerlink" title="TCP Tahoe"></a>TCP Tahoe</h2><img src = "/images/屏幕截图 2021-01-15 164359.png">
+
+<p>TCP解决了以下三个问题：</p>
+<ul>
+<li>什么时候传输新数据</li>
+<li>什么时候去重传</li>
+<li>什么时候发送ACK</li>
+</ul>
+<h3 id="TCP-Pre-Tahoe"><a href="#TCP-Pre-Tahoe" class="headerlink" title="TCP Pre-Tahoe"></a>TCP Pre-Tahoe</h3><img src = "/images/屏幕截图 2021-01-15 164859.png">
+
+<p>现代TCP的滑动窗口机制确保了发送方发出的数据不会超过最后一个ACK的数据+窗口大小。而原始的TCP协议是在三次握手之后会根据窗口大小_立刻_发送一个窗口的报文（假如窗口是100KB，它会立刻发送一个100KB的segment）并为每个packet设置定时器，在定时器走完后如果没收到ACK将重传该packet，这样做的问题在于，假设网络所能容纳的packet小于窗口大小，那么发送端发出以后只会有几个被成功接收，它们后面的包将全部被丢弃。</p>
+<img src = "/images/屏幕截图 2021-01-15 165933.png">
+
+<p>从图中可以看出在发送一些segment后，其他segment就被丢弃了，导致那一个segment的packet都得重传，所以Y的值在不断的上升然后下降。</p>
+<h2 id="Improvement-of-Tahoe"><a href="#Improvement-of-Tahoe" class="headerlink" title="Improvement of Tahoe"></a>Improvement of Tahoe</h2><img src = "/images/屏幕截图 2021-01-15 170658.png">
+
+<img src = "/images/屏幕截图 2021-01-15 170934.png">
+
+<h3 id="Congestion-window"><a href="#Congestion-window" class="headerlink" title="Congestion window"></a>Congestion window</h3><p>TCP Tahoe预估了拥塞窗口，发送窗口是滑动窗口和拥塞窗口中的较小值，这保证了发送方既不会发送超出接受方处理能力的包，也不会发送超过网络传输能力的包。TCP将测量拥塞窗口的方法分为两个阶段：慢启动与拥塞避免。在稳定状态时，TCP处于拥塞避免状态，遵循AIMD规则。当连接开始增多，或者有包超时时TCP进入慢启动状态，此时不再遵循AIMD规则。</p>
+<h3 id="Slow-Start"><a href="#Slow-Start" class="headerlink" title="Slow Start"></a>Slow Start</h3><img src = "/images/屏幕截图 2021-01-15 173615.png">
+
+<p>当TCP进入慢启动状态，它的拥塞窗口大小为最大的segment的长度（MSS）或者一个packet的长度，在收到ACK后拥塞窗口会以MSS的倍数增长。这也就意味着拥塞窗口的增长是指数增长，发送方的初始窗口就是MSS那么大，让后发送一个segment，当收到ACK时增加拥塞窗口到两倍的MSS然后发送两倍长的新segment，当再次收到ACK时拥塞窗口变为四倍MSS，同时发送四倍长的segment，也就是如果一切正常发送的segment将会呈现指数级增长。</p>
+<p>慢启动这个名字看起来似乎有些误导性，指数增长肯定是比AIMD要快，但是它这个“慢”是和老的TCP发送方式比，也就是该小节开头提到的的直接把整个窗口发送出去相比要更慢。</p>
+<h3 id="Congestion-avoidance"><a href="#Congestion-avoidance" class="headerlink" title="Congestion avoidance"></a>Congestion avoidance</h3><img src = "/images/屏幕截图 2021-01-15 173643.png">
+
+<p>在拥塞避免阶段，TCP增加窗口大小的速度要慢的多，类似于AIMD，它的增量步长为MSS^2/(每个ACK的拥塞窗口大小)。假设没有包被丢弃，那么TCP的拥塞窗口将在每一个RTT后增加一个MSS的长度，也就是AIMD中的AI。</p>
+<h3 id="State-Transitions"><a href="#State-Transitions" class="headerlink" title="State Transitions"></a>State Transitions</h3><img src = "/images/屏幕截图 2021-01-15 174513.png">
+
+<p>慢启动让我们可以以一个比较快的速度达到网络的传输能力，当我们接近传输能力的极限时用拥塞避免可以渐进的探查到最终的传输极限。那么这两者又是如何转换的呢？</p>
+<p>两种状态的转化依赖三个信号，TCP会累计ACK的数量，当出现重复ACK代表着有些segment丢失了或者延迟，但是其他segment被成功接收，最后如果超时代表出现严重错误。</p>
+<img src = "/images/屏幕截图 2021-01-15 175245.png">
+
+<img src = "/images/屏幕截图 2021-01-15 175917.png">
+
+
+
+<h2 id="TCP-Reno"><a href="#TCP-Reno" class="headerlink" title="TCP Reno"></a>TCP Reno</h2><img src = "/images/屏幕截图 2021-01-20 224328.png">
+
+<p>TCP Reno 在收到三次重复的ACK（这意味着接收端虽然一直在收到包，但是某个特定的包丢了，发的这三个ACK是那个特定包之后接收到包时发出的）后会采取快速重传机制，不会等到超时时间结束，而是直接重传三次ACK前的那个segment，这种机制使得Reno不会进入slow start状态，只会把拥塞窗口减半，然后维持拥塞避免状态。</p>
+</div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">PhenoGao</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://xonlab.com/2021/01/15/CS144%20%E2%85%A3%20Congestion%20Control/">http://xonlab.com/2021/01/15/CS144%20%E2%85%A3%20Congestion%20Control/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://xonlab.com" target="_blank">XonLab</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C/">网络</a></div><div class="post_share"><div class="social-share" data-image="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-anni-roenkae-3418457.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"/><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js"></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2021/01/18/IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8/"><img class="prev-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-anni-roenkae-3418457.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">I/O多路复用与epoll</div></div></a></div><div class="next-post pull-right"><a href="/2021/01/12/Go%E6%8E%A5%E5%8F%A3%E4%B8%AD%E7%9A%84%E5%8A%A8%E6%80%81%E5%88%86%E5%8F%91%E6%9C%BA%E5%88%B6/"><img class="next-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-jo%C3%A3o-v%C3%ADtor-heinrichs-1856183.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">Go接口中的动态分发机制</div></div></a></div></nav><div class="relatedPosts"><div class="relatedPosts_headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts_list"><div class="relatedPosts_item"><a href="/2020/11/14/CS144 Ⅰ 网络层次模型 大端小端 ARP 子网掩码/" title="CS144 Ⅰ 网络层次模型 大端小端 ARP 子网掩码"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-jo%C3%A3o-v%C3%ADtor-heinrichs-1856183.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-11-14</div><div class="relatedPosts_title">CS144 Ⅰ 网络层次模型 大端小端 ARP 子网掩码</div></div></a></div><div class="relatedPosts_item"><a href="/2020/11/28/CS144 Ⅱ TCP/" title="CS144 Ⅱ TCP"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/2009affaf93af1f97df512c4fe77f989.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-11-28</div><div class="relatedPosts_title">CS144 Ⅱ TCP</div></div></a></div><div class="relatedPosts_item"><a href="/2021/01/11/CS144 Ⅲ Packet Switching/" title="CS144  Ⅲ Packet Switching"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-1395074.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-11</div><div class="relatedPosts_title">CS144  Ⅲ Packet Switching</div></div></a></div><div class="relatedPosts_item"><a href="/2020/11/01/23 个问题 TCP 疑难杂症全解析/" title="23 个问题 TCP 疑难杂症全解析"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-4l5wpy.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-11-01</div><div class="relatedPosts_title">23 个问题 TCP 疑难杂症全解析</div></div></a></div></div></div></article></main><footer id="footer" data-type="color"><div id="footer-wrap"><div class="copyright">&copy;2018 - 2021 By PhenoGao</div></div></footer></div><section class="rightside" id="rightside"><div id="rightside-config-hide"><button id="readmode" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="font_plus" title="放大字体"><i class="fas fa-plus"></i></button><button id="font_minus" title="缩小字体"><i class="fas fa-minus"></i></button><button id="darkmode" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" title="设置"><i class="fas fa-cog"></i></button><button class="close" id="mobile-toc-button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></section><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script src="https://cdn.jsdelivr.net/npm/animejs@latest/anime.min.js"></script><script src="/js/third-party/fireworks.js"></script><script id="ribbon_piao" mobile="true" src="/js/third-party/piao.js"></script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module" defer></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js" async></script></body></html>
