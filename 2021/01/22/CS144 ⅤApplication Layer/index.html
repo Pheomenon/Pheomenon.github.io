@@ -1,0 +1,179 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CS144 ⅤApplication Layer | XonLab</title><meta name="description" content="Network Address Translation(NAT)  NAT 的作用是暴露一个公共的IP，外部流量想访问内网时会先经过NAT，然后NAT把流量转发给对应的内网主机。这样就不用每个设备都占用一个公共的IP了，但这也产生了新的问题，NAT后的IP都是NAT来管理并分配的，外网怎么能拿到NAT后的IP并发起连接呢?   现在A在NAT后面，B想访问A，但是现在NAT中没有B到A的映射，自然"><meta name="keywords" content="网络"><meta name="author" content="PhenoGao"><meta name="copyright" content="PhenoGao"><meta name="format-detection" content="telephone=no"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://xonlab.com/2021/01/22/CS144%20%E2%85%A4Application%20Layer/"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin="crossorigin"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><meta property="og:type" content="article"><meta property="og:title" content="CS144 ⅤApplication Layer"><meta property="og:url" content="http://xonlab.com/2021/01/22/CS144%20%E2%85%A4Application%20Layer/"><meta property="og:site_name" content="XonLab"><meta property="og:description" content="Network Address Translation(NAT)  NAT 的作用是暴露一个公共的IP，外部流量想访问内网时会先经过NAT，然后NAT把流量转发给对应的内网主机。这样就不用每个设备都占用一个公共的IP了，但这也产生了新的问题，NAT后的IP都是NAT来管理并分配的，外网怎么能拿到NAT后的IP并发起连接呢?   现在A在NAT后面，B想访问A，但是现在NAT中没有B到A的映射，自然"><meta property="og:image" content="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-mpv1o8.jpg"><meta property="article:published_time" content="2021-01-22T03:26:21.000Z"><meta property="article:modified_time" content="2021-01-22T11:15:41.652Z"><meta name="twitter:card" content="summary"><script>var activateDarkMode = function () {
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000')
+  }
+}
+var activateLightMode = function () {
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fff')
+  }
+}
+
+var getCookies = function (name) {
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop().split(';').shift()
+}
+
+var autoChangeMode = 'false'
+var t = getCookies('theme')
+if (autoChangeMode === '1') {
+  var isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+  var isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+  var isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+  if (t === undefined) {
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport) {
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour <= 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+      if (Cookies.get('theme') === undefined) {
+        e.matches ? activateDarkMode() : activateLightMode()
+      }
+    })
+  } else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode === '2') {
+  now = new Date()
+  hour = now.getHours()
+  isNight = hour <= 6 || hour >= 18
+  if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if (t === 'dark') activateDarkMode()
+  else if (t === 'light') activateLightMode()
+}</script><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><link rel="next" title="I/O多路复用与epoll" href="http://xonlab.com/2021/01/18/IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8/"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  bookmark: {
+    message_prev: '按',
+    message_next: '键将本页加入书签'
+  },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  justifiedGallery: {
+    js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+    css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+  },
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  isPhotoFigcaption: false,
+  islazyload: true,
+  isanchor: false    
+}</script><script>var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isSidebar: true
+  }</script><noscript><style>
+#nav {
+  opacity: 1
+}
+.justified-gallery img{
+  opacity: 1
+}
+</style></noscript><meta name="generator" content="Hexo 4.2.1"></head><body><canvas class="fireworks"></canvas><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="https://edu-102.oss-cn-beijing.aliyuncs.com/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">95</div></a></div></div><div class="mobile_data_item is-center">      <div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div><div class="length_num">63</div></a></div></div><div class="mobile_data_item is-center">     <div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div><div class="length_num">7</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div></div></div><i class="fas fa-arrow-right on" id="toggle-sidebar"></i><div id="sidebar"><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Network-Address-Translation-NAT"><span class="toc-number">1.</span> <span class="toc-text">Network Address Translation(NAT)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#HTTP"><span class="toc-number">2.</span> <span class="toc-text">HTTP</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#HTTP-Request-Format"><span class="toc-number">3.</span> <span class="toc-text">HTTP Request Format</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#HTTP-Response-Format"><span class="toc-number">4.</span> <span class="toc-text">HTTP Response Format</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#HTTP-1-0"><span class="toc-number">5.</span> <span class="toc-text">HTTP 1.0</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#HTTP-1-1"><span class="toc-number">6.</span> <span class="toc-text">HTTP 1.1</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#SPDY"><span class="toc-number">7.</span> <span class="toc-text">SPDY</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#BitTorrent"><span class="toc-number">8.</span> <span class="toc-text">BitTorrent</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Torrent-Files"><span class="toc-number">8.1.</span> <span class="toc-text">Torrent Files</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#DNS"><span class="toc-number">9.</span> <span class="toc-text">DNS</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#DNS-Name-Architecture"><span class="toc-number">9.1.</span> <span class="toc-text">DNS Name Architecture</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#A-DNS-Query"><span class="toc-number">9.2.</span> <span class="toc-text">A DNS Query</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#DNS-Message-Structure"><span class="toc-number">9.3.</span> <span class="toc-text">DNS Message Structure</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Dynamic-Host-Configuration-Protocol（DHCP）"><span class="toc-number">10.</span> <span class="toc-text">Dynamic Host Configuration Protocol（DHCP）</span></a></li></ol></div></div></div><div id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-mpv1o8.jpg)"><nav id="nav"><span class="pull-left" id="blog_name"><a class="blog_title" id="site-name" href="/">XonLab</a></span><span class="pull-right menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div><span class="toggle-menu close"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></span></span></nav><div id="post-info"><div id="post-title"><div class="posttitle">CS144 ⅤApplication Layer</div></div><div id="post-meta"><div class="meta-firstline"><time class="post-meta__date" title="发表于 2021-01-22 11:26:21"><i class="fa-fw far fa-calendar-alt"></i> 发表于 2021-01-22</time></div><div class="meta-secondline"> <span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta__icon"></i><span>字数总计:</span><span class="word-count">2.3k</span><span class="post-meta__separator">|</span><i class="far fa-clock fa-fw post-meta__icon"></i><span>阅读时长: 7 分钟</span></span></div><div class="meta-thirdline"><span class="post-meta-pv-cv"><span class="post-meta__separator">|</span><i class="far fa-eye fa-fw post-meta__icon"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span><span class="post-meta-commentcount"></span></div></div></div></header><main class="layout_post" id="content-inner"><article id="post"><div class="post-content" id="article-container"><h2 id="Network-Address-Translation-NAT"><a href="#Network-Address-Translation-NAT" class="headerlink" title="Network Address Translation(NAT)"></a>Network Address Translation(NAT)</h2><img src = "/images/屏幕截图 2021-01-22 113719.png">
+
+<p>NAT 的作用是暴露一个公共的IP，外部流量想访问内网时会先经过NAT，然后NAT把流量转发给对应的内网主机。这样就不用每个设备都占用一个公共的IP了，但这也产生了新的问题，NAT后的IP都是NAT来管理并分配的，外网怎么能拿到NAT后的IP并发起连接呢?</p>
+<img src = "/images/屏幕截图 2021-01-22 143358.png">
+
+<p>现在A在NAT后面，B想访问A，但是现在NAT中没有B到A的映射，自然无法访问到A。此时就需要rendezvous service，图中的R提供rendezvous service，首先A和B都会在R中注册。如果B想连接A，它会先想R发出请求，然后R携带着B的地址向A发出请求，A再来反向连接到B，以此来建立A和B之间的连接。</p>
+<img src = "/images/屏幕截图 2021-01-22 144113.png">
+
+<p>如果A，B都在NAT后面，A、B想要连接彼此都需要先找R，R做中继来转发A、B的流量。</p>
+<h2 id="HTTP"><a href="#HTTP" class="headerlink" title="HTTP"></a>HTTP</h2><img src = "/images/屏幕截图 2021-01-22 145224.png">
+
+<p>HTTP协议即超文本传输协议，那么什么是超文本？超文本指的是一个文档格式，使得我们可以把一些格式和内容信息放到一个文档中。超文本由ASCII字符构成。</p>
+<h2 id="HTTP-Request-Format"><a href="#HTTP-Request-Format" class="headerlink" title="HTTP Request Format"></a>HTTP Request Format</h2><img src = "/images/屏幕截图 2021-01-22 150919.png">
+
+<p>HTTP会携带请求的方法（GET、POST…），应用于该方法的URL，HTTP版本。中间的空白是空格。左箭头意味着回到该行的开头，下箭头意味着进入下一行。</p>
+<p>request本身可以有一个或多个header，一个header占一行，每一个header都是以header field name、value这样的顺序排列。</p>
+<p>header部分结束后是一个空行，紧接着就是request body。如果是GET请求自然body是空的，但是HTTP支持多种请求比如发POST的时候body就会被填充成你需要发送的数据。</p>
+<h2 id="HTTP-Response-Format"><a href="#HTTP-Response-Format" class="headerlink" title="HTTP Response Format"></a>HTTP Response Format</h2><img src = "/images/屏幕截图 2021-01-22 152104.png">
+
+<p>Response和Request的结构相似，首行是HTTP版本，状态码，状态码的描述。比如200 OK、404 Not Found等。Response的header也是可以有一个或多个，然后空行，最后是Response body。</p>
+<p>这里补充一点，有一个Header叫<code>if-Modified-Sinces</code>它的值是一个时间戳，表明从此时起这个页面就没被修改过了。假如有一个response返回304这意味着这个页面没被修改过，现在看到的页面实际上来自浏览器缓存，而不是从服务器拿来的数据。</p>
+<h2 id="HTTP-1-0"><a href="#HTTP-1-0" class="headerlink" title="HTTP 1.0"></a>HTTP 1.0</h2><img src = "/images/屏幕截图 2021-01-22 154135.png">
+
+<p>HTTP 1.0做的事情非常简单，支持GET请求，客户端发送请求后做出相应，最后关闭连接。如果想再次请求则得再次重复三次握手建立连接。</p>
+<img src = "/images/屏幕截图 2021-01-22 155611.png">
+
+<p>HTTP 1.0的问题在于如果返回的网页中含有多个媒体资源，那客户端得多次请求服务端返回媒体资源，这意味着多次握手与挥手，同时因为TCP的发送窗口一开始是很小的，而HTTP每次连接传输的内容又比较少，TCP窗口还没有增长到链路的极限时数据就发送完了，造成链路的利用率低下。</p>
+<h2 id="HTTP-1-1"><a href="#HTTP-1-1" class="headerlink" title="HTTP 1.1"></a>HTTP 1.1</h2><img src = "/images/屏幕截图 2021-01-22 160002.png">
+
+<p>HTTP 1.1会携带一个Header告诉服务器是否应该在相应后保持连接（当然，是否在相应后保持连接由服务器决定）。response会包含一个Connection header，通过它来告知客户端服务器想做什么。如果服务器决定keep-alive这个连接，那么keep-alive这个header将会告诉客户端连接会保持多久。现在，客户端可以利用一个连接发送更多request。</p>
+<h2 id="SPDY"><a href="#SPDY" class="headerlink" title="SPDY"></a>SPDY</h2><img src = "/images/屏幕截图 2021-01-22 161006.png">
+
+<p>SPDY是谷歌开发的新协议，思想是异步的返回所需的资源，如果有的资源相应得很慢，可以先把能响应的资源的返回给客户端，而不是像以前一样等所有资源都就位了才打包发送。</p>
+<h2 id="BitTorrent"><a href="#BitTorrent" class="headerlink" title="BitTorrent"></a>BitTorrent</h2><img src = "/images/屏幕截图 2021-01-22 161503.png">
+
+<p>BitTorrent采用去中心化的思想，客户端得到文件不再是从单一服务器中获得了，而是从其他客户端中取得。为了使单个客户端能并行从多个客户端获取文件，BitTorrent把文件分解成多个块，当一个客户端下载了一个块时，会通知其他客户端，这样其他客户端就可以从那里下载了。这样相互协同的客户端集群被称为swarms。</p>
+<h3 id="Torrent-Files"><a href="#Torrent-Files" class="headerlink" title="Torrent Files"></a>Torrent Files</h3><img src = "/images/屏幕截图 2021-01-22 162142.png">
+
+<p>BitTorrent把文件分成N块，每块256KB或者更大，规定这个大小是为了确保TCP流传输文件时能让TCP窗口增长到一个可以充分利用链路的大小，BitTorrent也会把块再分成子块，这样就可以向拥有这一个块的多台机器来发送请求以此来降低延迟。块也是检查文件完整性的一个单位，一个torrent包含每个块的SHA1码。</p>
+<p>关于这文件完整性，这里有一个故事。2006年HBO发行了一部新剧《Rome》。当时有几个不同的torrents可以用来下载这部剧，它们中的每一个都有着很大的swarm，但是大家发现无论如何都利用这几个torrent来下剧，原因是在swarm中有一些速度极快的peer（这会导致其他client优先从这个peer中下载块），但是这些peer提供的块的哈希是不匹配的。所以其他client从这些peer中下载块后，然后发现哈希不对，扔掉这个块，然后再请求这个peer，一直重复这个过程。大量的client进入这个无尽循环。有说法是HBO设置了这些peer，为的是防止盗版。现在client可以设置黑名单，如果一个peer提供的块是损坏的那就会进入黑名单，并不再从该peer中获取数据。</p>
+<img src = "/images/屏幕截图 2021-01-22 164836.png">
+
+<p>peer会周期性的交换信息以此来知道每个块在哪台主机上，客户端会优先下载最稀有的块，如果单个块不可用了，没人能下载完整的文件，所以，如果只有几个client有块，它们将成为下载时的瓶颈，这被成为稀有优先原则。如果一个客户端几乎下完了文件，只有几个块没下载时，它将向多个peer做出请求。这是为了防止最后一个块来自一个很慢的peer，导致整体下载很慢。</p>
+<img src = "/images/屏幕截图 2021-01-22 165609.png">
+
+<p>如前所述，客户端会交换元数据来定位块的位置，但假如一个客户端向所有peer提供块，它可能开启上百个TCP流，那对于其他peer来说，其实获得块的速度实际上是很慢的。BitTorrent的做法是每个peer只开启几个TCP流，每个peer在一个小范围内相互发送数据。以此来提升速度。BitTorrent计算出从每个peer得到数据的比率，然后从中选出最好的几个peer，然后再相互交换数据。</p>
+<h2 id="DNS"><a href="#DNS" class="headerlink" title="DNS"></a>DNS</h2><img src = "/images/屏幕截图 2021-01-22 171404.png">
+
+<img src = "/images/屏幕截图 2021-01-22 173237.png">
+
+<p>DNS服务是只读，或读远远大于写的。同时允许弱一致性，不同的用户可能在同一时间得到不同的结果。</p>
+<h3 id="DNS-Name-Architecture"><a href="#DNS-Name-Architecture" class="headerlink" title="DNS Name Architecture"></a>DNS Name Architecture</h3><img src = "/images/屏幕截图 2021-01-22 174324.png">
+
+
+
+<img src = "/images/屏幕截图 2021-01-22 175205.png">
+
+<img src = "/images/屏幕截图 2021-01-22 175234.png">
+
+<h3 id="A-DNS-Query"><a href="#A-DNS-Query" class="headerlink" title="A DNS Query"></a>A DNS Query</h3><img src = "/images/屏幕截图 2021-01-22 175617.png">
+
+<p>有两种DNS查询：递归和非递归</p>
+<p>递归查询会逐级向上查询，非递归查询只会查一个服务器。</p>
+<p>DNS通常使用UDP和53端口。</p>
+<p>递归查询：先查找最近的DNS服务R，如果没结果，R将会向根服务器发出非递归请求来询问管理这个顶级域名的服务器是谁，然后R缓存这个顶级域名服务器的信息，同时向顶级域名服务器查询domain域名，再查询domain服务器。最后返回。</p>
+<p><em>为什么DNS又要用TCP又要用UDP？</em></p>
+<p>首先UDP报文长度最大为512字节，而TCP允许报文长度超过512字节，当DNS查询超过512字节时，协议的TC标志出现删除标志，则这时使用TCP发送，通常传统的UDP报文一般不会大于512字节。</p>
+<p>区域传送时使用TCP，主要有两个原因：</p>
+<p>辅域名服务器会定时（一般是3小时）向主域名服务器进行查询以便了解数据是否有变动。如有变动，则会执行一次区域传送，进行数据同步，区域传送使用TCP，因为数据同步传送的数据量比一个请求和应答的数据量要多得多。</p>
+<p>TCP是一种可靠的连接保证了数据的准确性。</p>
+<p>域名解析时使用UDP协议：</p>
+<p>客户端向DNS服务器查询域名，一般返回的内容都不超过512字节，用UDP传输即可，不用TCP三次握手，这样DNS服务器的负载更低，响应更快。虽然理论上说，客户端也可以指定DNS服务器查询的时候使用TCP但事实上，很多DNS服务器进行配置的时候仅支持UDP查询包。</p>
+<h3 id="DNS-Message-Structure"><a href="#DNS-Message-Structure" class="headerlink" title="DNS Message Structure"></a>DNS Message Structure</h3><img src = "/images/屏幕截图 2021-01-22 181551.png">
+
+<img src = "/images/屏幕截图 2021-01-22 181633.png">
+
+<img src = "/images/屏幕截图 2021-01-22 181656.png">
+
+<h2 id="Dynamic-Host-Configuration-Protocol（DHCP）"><a href="#Dynamic-Host-Configuration-Protocol（DHCP）" class="headerlink" title="Dynamic Host Configuration Protocol（DHCP）"></a>Dynamic Host Configuration Protocol（DHCP）</h2><img src = "/images/屏幕截图 2021-01-22 190536.png">
+
+<p>DHCP的做法是一台机器在连接到网络时可以请求DHCP服务器来进行配置，比如分配一个IP，获得子网掩码等。这个配置的有效期由租约（lease）控制，当租约到期时需要更新配置。</p>
+</div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">PhenoGao</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://xonlab.com/2021/01/22/CS144%20%E2%85%A4Application%20Layer/">http://xonlab.com/2021/01/22/CS144%20%E2%85%A4Application%20Layer/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://xonlab.com" target="_blank">XonLab</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C/">网络</a></div><div class="post_share"><div class="social-share" data-image="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-mpv1o8.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"/><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js"></script></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2021/01/18/IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8/"><img class="next-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-2004950.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">I/O多路复用与epoll</div></div></a></div></nav><div class="relatedPosts"><div class="relatedPosts_headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts_list"><div class="relatedPosts_item"><a href="/2020/11/14/CS144 Ⅰ 网络层次模型 大端小端 ARP 子网掩码/" title="CS144 Ⅰ 网络层次模型 大端小端 ARP 子网掩码"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-anni-roenkae-3418457.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-11-14</div><div class="relatedPosts_title">CS144 Ⅰ 网络层次模型 大端小端 ARP 子网掩码</div></div></a></div><div class="relatedPosts_item"><a href="/2020/11/01/23 个问题 TCP 疑难杂症全解析/" title="23 个问题 TCP 疑难杂症全解析"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/md-3.png"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-11-01</div><div class="relatedPosts_title">23 个问题 TCP 疑难杂症全解析</div></div></a></div><div class="relatedPosts_item"><a href="/2021/01/11/CS144 Ⅲ Packet Switching/" title="CS144  Ⅲ Packet Switching"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-dids-3527787.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-11</div><div class="relatedPosts_title">CS144  Ⅲ Packet Switching</div></div></a></div><div class="relatedPosts_item"><a href="/2020/11/28/CS144 Ⅱ TCP/" title="CS144 Ⅱ TCP"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-anni-roenkae-3418457.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-11-28</div><div class="relatedPosts_title">CS144 Ⅱ TCP</div></div></a></div><div class="relatedPosts_item"><a href="/2021/01/15/CS144 Ⅳ Congestion Control/" title="CS144 Ⅳ Congestion Control"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/40-backgrounds-material.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-15</div><div class="relatedPosts_title">CS144 Ⅳ Congestion Control</div></div></a></div></div></div></article></main><footer id="footer" data-type="color"><div id="footer-wrap"><div class="copyright">&copy;2018 - 2021 By PhenoGao</div></div></footer></div><section class="rightside" id="rightside"><div id="rightside-config-hide"><button id="readmode" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="font_plus" title="放大字体"><i class="fas fa-plus"></i></button><button id="font_minus" title="缩小字体"><i class="fas fa-minus"></i></button><button id="darkmode" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" title="设置"><i class="fas fa-cog"></i></button><button class="close" id="mobile-toc-button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></section><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script src="https://cdn.jsdelivr.net/npm/animejs@latest/anime.min.js"></script><script src="/js/third-party/fireworks.js"></script><script id="ribbon_piao" mobile="true" src="/js/third-party/piao.js"></script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module" defer></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js" async></script></body></html>
