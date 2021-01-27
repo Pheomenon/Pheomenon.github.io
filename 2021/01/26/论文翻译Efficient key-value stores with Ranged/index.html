@@ -1,0 +1,197 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>论文翻译|Efficient key-value stores with Ranged Log-structured Merge Trees | XonLab</title><meta name="description" content="Efficient key-value stores with Ranged Log-structured Merge Trees   Nae Young Song and Heon Young YeomDept. of Computer Science and Engineering Seoul National University Seoul, South Korea  Email: {ny"><meta name="keywords" content="论文翻译,LSM-tree"><meta name="author" content="PhenoGao"><meta name="copyright" content="PhenoGao"><meta name="format-detection" content="telephone=no"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://xonlab.com/2021/01/26/%E8%AE%BA%E6%96%87%E7%BF%BB%E8%AF%91Efficient%20key-value%20stores%20with%20Ranged/"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin="crossorigin"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><meta property="og:type" content="article"><meta property="og:title" content="论文翻译|Efficient key-value stores with Ranged Log-structured Merge Trees"><meta property="og:url" content="http://xonlab.com/2021/01/26/%E8%AE%BA%E6%96%87%E7%BF%BB%E8%AF%91Efficient%20key-value%20stores%20with%20Ranged/"><meta property="og:site_name" content="XonLab"><meta property="og:description" content="Efficient key-value stores with Ranged Log-structured Merge Trees   Nae Young Song and Heon Young YeomDept. of Computer Science and Engineering Seoul National University Seoul, South Korea  Email: {ny"><meta property="og:image" content="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-4525o7.jpg"><meta property="article:published_time" content="2021-01-26T08:07:21.000Z"><meta property="article:modified_time" content="2021-01-27T02:09:34.036Z"><meta name="twitter:card" content="summary"><script>var activateDarkMode = function () {
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000')
+  }
+}
+var activateLightMode = function () {
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fff')
+  }
+}
+
+var getCookies = function (name) {
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop().split(';').shift()
+}
+
+var autoChangeMode = 'false'
+var t = getCookies('theme')
+if (autoChangeMode === '1') {
+  var isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+  var isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+  var isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+  if (t === undefined) {
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport) {
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour <= 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+      if (Cookies.get('theme') === undefined) {
+        e.matches ? activateDarkMode() : activateLightMode()
+      }
+    })
+  } else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode === '2') {
+  now = new Date()
+  hour = now.getHours()
+  isNight = hour <= 6 || hour >= 18
+  if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if (t === 'dark') activateDarkMode()
+  else if (t === 'light') activateLightMode()
+}</script><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><link rel="next" title="CS144 Ⅵ Routing" href="http://xonlab.com/2021/01/24/CS144%20%E2%85%A5%20Routing/"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  bookmark: {
+    message_prev: '按',
+    message_next: '键将本页加入书签'
+  },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  justifiedGallery: {
+    js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+    css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+  },
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  isPhotoFigcaption: false,
+  islazyload: true,
+  isanchor: false    
+}</script><script>var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isSidebar: true
+  }</script><noscript><style>
+#nav {
+  opacity: 1
+}
+.justified-gallery img{
+  opacity: 1
+}
+</style></noscript><meta name="generator" content="Hexo 4.2.1"></head><body><canvas class="fireworks"></canvas><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="https://edu-102.oss-cn-beijing.aliyuncs.com/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">98</div></a></div></div><div class="mobile_data_item is-center">      <div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div><div class="length_num">65</div></a></div></div><div class="mobile_data_item is-center">     <div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div><div class="length_num">7</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div></div></div><i class="fas fa-arrow-right on" id="toggle-sidebar"></i><div id="sidebar"><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#摘要"><span class="toc-number">1.</span> <span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#I-INTRODUCTION"><span class="toc-number">2.</span> <span class="toc-text">I. INTRODUCTION</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#II-MOTIVATION-AND-RELATED-WORKS"><span class="toc-number">3.</span> <span class="toc-text">II. MOTIVATION AND RELATED WORKS</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#A-Motivation"><span class="toc-number">3.1.</span> <span class="toc-text">A. Motivation</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#B-Related-Work"><span class="toc-number">3.2.</span> <span class="toc-text">B. Related Work</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#III-SYSTEM-DESIGN"><span class="toc-number">4.</span> <span class="toc-text">III. SYSTEM DESIGN</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#A-Ranged-LSM-RLSM-tree"><span class="toc-number">4.1.</span> <span class="toc-text">A. Ranged LSM (RLSM) tree</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#B-Load-balancing-for-files"><span class="toc-number">4.2.</span> <span class="toc-text">B. Load balancing for files</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#IV-IMPLEMENTATION"><span class="toc-number">5.</span> <span class="toc-text">IV. IMPLEMENTATION</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#A-Appending-data"><span class="toc-number">5.1.</span> <span class="toc-text">A. Appending data</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#B-Victim-selection"><span class="toc-number">5.2.</span> <span class="toc-text">B. Victim selection</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#C-Data-indexing"><span class="toc-number">5.3.</span> <span class="toc-text">C. Data indexing</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#V-EVALUATION"><span class="toc-number">6.</span> <span class="toc-text">V. EVALUATION</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#A-Environment-setting"><span class="toc-number">6.1.</span> <span class="toc-text">A. Environment setting</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#B-Write-performance"><span class="toc-number">6.2.</span> <span class="toc-text">B. Write performance</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#C-Memory-consumption-and-GC-overhead"><span class="toc-number">6.3.</span> <span class="toc-text">C. Memory consumption and GC overhead</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#D-Performance-under-the-mixed-workload"><span class="toc-number">6.4.</span> <span class="toc-text">D. Performance under the mixed workload</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#VI-CONCLUSION-AND-FUTURE-WORK"><span class="toc-number">7.</span> <span class="toc-text">VI. CONCLUSION AND FUTURE WORK</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#REFERENCES"><span class="toc-number">8.</span> <span class="toc-text">REFERENCES</span></a></li></ol></div></div></div><div id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-4525o7.jpg)"><nav id="nav"><span class="pull-left" id="blog_name"><a class="blog_title" id="site-name" href="/">XonLab</a></span><span class="pull-right menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div><span class="toggle-menu close"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></span></span></nav><div id="post-info"><div id="post-title"><div class="posttitle">论文翻译|Efficient key-value stores with Ranged Log-structured Merge Trees</div></div><div id="post-meta"><div class="meta-firstline"><time class="post-meta__date" title="发表于 2021-01-26 16:07:21"><i class="fa-fw far fa-calendar-alt"></i> 发表于 2021-01-26</time></div><div class="meta-secondline"> <span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta__icon"></i><span>字数总计:</span><span class="word-count">9k</span><span class="post-meta__separator">|</span><i class="far fa-clock fa-fw post-meta__icon"></i><span>阅读时长: 30 分钟</span></span></div><div class="meta-thirdline"><span class="post-meta-pv-cv"><span class="post-meta__separator">|</span><i class="far fa-eye fa-fw post-meta__icon"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span><span class="post-meta-commentcount"></span></div></div></div></header><main class="layout_post" id="content-inner"><article id="post"><div class="post-content" id="article-container"><center>Efficient key-value stores with Ranged Log-structured Merge Trees</center>
+
+<center>
+Nae Young Song and Heon Young YeomDept. of Computer Science and Engineering Seoul National University Seoul, South Korea 
+Email: {nysong, yeom}@dcslab.snu.ac.kr
+    </br>
+Hyuck Han Dept. of Computer Science Dongduk Women’s University Seoul, South Korea
+Email: hhyuck96@dongduk.ac.kr
+</center>
+
+<h1 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h1><p>LSM树旨在用日志-结构化方法来为频繁更新的数据提供一个高效的索引。它重排数据时使用延迟更新，利用内存组件来将索引的更新传播给一个或多个磁盘组件。因此基于LSM树的存储引擎可以有较好的写性能。然而在合并的过程中有着较高的写放大和内存消耗，降低了系统的总性能。</p>
+<p>此篇论文中，我们提出了一种Ranged Log-Structured Merge(RLSM)结构来降低LSM树的写放大和内存损耗。RLSM简化了存储的逻辑层并保持数据处于未排序的状态。此外，我们通过把数据分区的存放在磁盘中的多个不连续的文件来避免读性能的降低。我们在HBase中实现了上述方案，并在进行了YCBS基准测试。我们的实验结果表明RLSM降低了3倍的写放大，和24%的内存消耗。</p>
+<h1 id="I-INTRODUCTION"><a href="#I-INTRODUCTION" class="headerlink" title="I. INTRODUCTION"></a>I. INTRODUCTION</h1><p>在现代计算环境中，用户产生并消耗各种各样的数据，这种工作模式有着强随机读取的趋势[^1]。为了应对这种随机读取，存储系统通常有个巨大的cache或者buffer来和高延迟的持久存储层共同工作。通常，随机读取操作都在cache中完成，而对密集的随机速写时大多数存储系统都是使用的日志-结构化方法[^2][^3][^3][^4][^5][^6]。</p>
+<p>日志-结构化方法的一个代表性例子就是LSM树，它在很多KV存储中都有应用[^2][^3][^6][^8][^9][^10]。LSM可以通过将数据从较小的高性能存储（例如RAM）级联到较大的性能较低的存储中来处理写入密集型工作负载。基于LSM的存储系统通常将数据插入并存储在内存缓冲区中，并且当内存缓冲区已满时，内存缓冲区中的数据将被批量同步或刷新到持久性存储设备。同步时将通过日志-结构化方法将数据写入文件。所以写吞吐量比较高，因为写磁盘的时候是将随机插入的数据顺序写进磁盘的。</p>
+<p>利用了LSM的优势，工业界和学界开发了一系列基于LSM的存储系统，比如Google developed levelDB [^2], 还有很多团队研究出了它的变体比如 rocksDB [^3] 、 HyperLevelDB [^8]。 Cassandra [^6]是一个流行的基于LSM的存储引擎，此外还有Facebook message systems [^11], [^12] 使用了HBase [^9]。</p>
+<p>尽管对每个分区中的数据进行了排序，但是基于内存的组件和基于磁盘的组件之间的零星同步可能会导致多个分区具有重叠的范围。 这会导致一些问题，例如读放大[^a1]和文件管理开销。为了降低读放大，归并或压缩操作是定期执行的；基于LSM的存储系统从特定的文件（分区）中读取数据、重排数据，并将其重排后的数据写入新的文件（分区）。因此压缩操作是I/O密集的。通过重复压缩操作，特定的数据可以被多次写入存储设备，这也就造成了读放大[^a2]。另外，内存空间会被重排操作显著的消耗。压缩过程中存在大量的内存消耗和写放大这会对性能产生负面作用。此外这也导致了SSD设备的寿命快速损耗。</p>
+<p>为了解决这些问题，先前的研究[^13], [^14], [^15],[^16], [^17], [^18], [^19], [^20], [^21]调查了了LSM树的压缩过程。LSM-trie[^14]构造基于散列的trie而不是树结构，以减少压缩时的重新排序开销。Wisckey系统[^16]将数据处理中的键和值分开。 仅将密钥保留在LSM树中，而将值存储在日志中。此方法通过避免重复写入值来减少写入放大。 LWC [^15]还提出了轻量级压缩，它只根据key的范围附加数据并同时合并元数据。PebblesDB[^19]用哨兵来维护数据边界，尽管数据边界是可以重叠的。</p>
+<p>本论文中，我们提出Ranged Log-Structured Merge(RLSM) Tree来提高LSM树的性能。在LSM树中我们有一个在内存中的数据结构和磁盘上的数据结构。然而不同于LSM树，我们将存储设备中的所有逻辑级别仅集成到两个级别中，以减少多个存储级别之间的冗余数据写入：一个级别用于刷新文件，另一级别用于压缩文件。此外，我们使用基于哈希的数据结构来避免压缩过程的分类开销。通过使用基于哈希的数据，可以通过附加数据来完成压缩。在这个过程汇总，每个数据都根据它的范围被插入到特定的文件（分区）中，这样任何文件都不会重叠。</p>
+<p>我们用HBase实现了RLSM，并用YCSB评估了原始的HBase和我们的实现，结果是我们降低了三倍的写放大，增加了33%的写吞吐量。</p>
+<p>这篇论文的行文顺序是：第二章，介绍原始的LSM树和其发展历史；第三章，介绍我们的方案；第四章，实现方法；第五章，评估结果；第六章，结论。</p>
+<h1 id="II-MOTIVATION-AND-RELATED-WORKS"><a href="#II-MOTIVATION-AND-RELATED-WORKS" class="headerlink" title="II. MOTIVATION AND RELATED WORKS"></a>II. MOTIVATION AND RELATED WORKS</h1><h2 id="A-Motivation"><a href="#A-Motivation" class="headerlink" title="A. Motivation"></a>A. Motivation</h2><p>现存的通用系统或者关系数据库通常使用B-树或B+树作为基础数据结构。例如几个我们熟知的文件系统：XFS、Btrfs[^22]是基于B-树的。但是，基于标准块的数据结构（例如B + tree）会在高插入率和随机更新时因为要维护索引而增加I/O成本；最终，增加系统的总成本。为了降低开销，O’Neil et al提出了LSM树，一种在高插入与更新负载时能低成本维护索引的数据结构[^7]。</p>
+<p>在LSM树中，为了利用存储带宽数据被顺序写入，即使数据本来是被随机插入的。对于数据重排之类的复杂操作会被推迟以提高吞吐量，LSM通常以以下顺序工作：首先，键值对按插入顺序写入内存缓冲区，当缓冲区满时，LSM树将缓冲区的数据批量同步到磁盘，在同步期间键值对将顺序写入文件。如果重复此过程，则可以在存储中创建多个具有重叠范围的文件，从而导致较高的读放大。LSM树推迟复杂操作（压缩），例如在具有重叠范围的多个文件中对键值对进行重新排序，以实现高写入吞吐量。所以LSM树可以处理爆炸性的数据插入[^7]。</p>
+<img src = "/images/屏幕截图 2021-01-26 180045.png">
+
+<img src = "/images/屏幕截图 2021-01-26 180402.png">
+
+<p>LSM的劣势在于：在压缩期间的写放大。基本上，压缩过程中的那几个文件的范围是不相交的。为了达成这一点，将选定的文件加载到内存缓冲区中，并重新加载文件中的键值对。 然后将排序后的键值对写入新文件。 通过压缩过程，来自应用程序的单个键值将被多次写入存储。 结果，对存储的写入量大于数据集的实际大小。 另外，由于必须将文件的所有键值对都加载到要使用的内存缓冲区中，因此会增加内存消耗。</p>
+<p>图1（a）展示了LSM[^7]的基本的压缩过程，压缩了具有重叠范围的文件。所以在Level0的包含{1,3, 5}, {2, 4, 9} 的文件和包含{8, 10, 13}的在Level1的文件被压缩。它们被装载进内存，根据Key被排序，并被作为新文件被写入Level1。图1（b）展示了写放大率。基准实验结果是使用HBase在SSD设备上测量的，详细的实验环境将在第5节中进行说明。如图所示，写放大率随着数据量增长。当数据集到达128GB时写放大率大约是13。高写放大会减少SSD存储的寿命并增加存储成本。因此需要一个能降低I/O放大率的高效压缩算法。</p>
+<h2 id="B-Related-Work"><a href="#B-Related-Work" class="headerlink" title="B. Related Work"></a>B. Related Work</h2><p>为了解决压缩过程中的问题，有几个研究被提出[^14], [^15], [^16], [^20], [^21],[^23]。为了增加压缩效率，[^20]的作者建议延迟压缩（dCompaction）。使用这种方案，压缩被虚拟压缩替代，并且虚拟压缩创建了一个元文件，该元文件引用了要压缩的文件。合并多个虚拟压缩文件后，将使用元文件进行实际压缩。由于压缩过程引起的写操作可以批量处理，因此dCompaction减少了重写操作的数量，但牺牲了读取性能。</p>
+<p>LSM-trie [^14]通过使用键的哈希值而不是树来构造trie，使用哈希过的键，压缩过程将键条目划分为类似的散列键，这可以大大减少写放大。除此之外，要保留在内存中的Bloom过滤器还可以更快地处理单点查询请求。然而，由于散列键的存在，处理扫描（范围搜索）是一项挑战。最近提出了基于跳表的PebblesDB [^19]。它的数据文件之间使用concrete wall（哨兵），并且文件的数据范围可以在concrete wall内重叠。但是具有不同保护措施的数据文件不能重叠；guard和数据之间组织形式是粗糙的，允许保护范围内数据的重叠，PebblesDB减少了全范围排序的开销。使用此方案，每个Level仅写入一次数据。但是，无法避免在多个级别之间写入冗余数据。</p>
+<p>研究[^15], [^16], [^21], [^23] 优化了基于LSM的存储系统以利用新硬件的特性，例如SSD和SMR磁盘。Awasthi et al.[^23]选择把元数据或者系统组件存储到SSD中，这是因为这种类型的数据不仅规模小而且不会因数据大小和访问方式的不同而发生明显变化。他们的研究说明就每吞吐成本而言，他们的系统优于基于完整硬盘驱动器（HDD）的系统。 Wang等[^21]通过利用开放通道SSD中的高度并行性（其中在主机级别直接访问SSD中的通道），提高了基于LSM的KV的吞吐量。他们在软件层面优化调度和分发。Lu et al. [^16]使用存储设备的顺序将数据存储在日志中。仅将Key存储在LSM树中。慢速读取是日志数据的折衷方案，可以通过使用SSD设备的内部并行性来缓解。 Wu et al. [^15]提出LWC存储使用SMR。由于SMR磁盘在传统文件系统上生成辅助写入或读取放大，因此LWC存储直接在SMR磁盘之上运行，并以SMR友好方式管理基础磁盘布局。它在连续的物理地址空间中分配每个DTable（文件），以进行有效的I/O操作。</p>
+<h1 id="III-SYSTEM-DESIGN"><a href="#III-SYSTEM-DESIGN" class="headerlink" title="III. SYSTEM DESIGN"></a>III. SYSTEM DESIGN</h1><p>在本节中，我们描述了Ranged LSM（RLSM）树及其压缩过程，以减少写放大。 我们还描述了文件分区，以减少读取操作（包括扫描操作）的开销。</p>
+<h2 id="A-Ranged-LSM-RLSM-tree"><a href="#A-Ranged-LSM-RLSM-tree" class="headerlink" title="A. Ranged LSM (RLSM) tree"></a>A. Ranged LSM (RLSM) tree</h2><p>RLSM不需要严格排序数据以减少压缩过程中的排序开销。 为此，我们使用基于散列的数据结构来存储数据。 我们对Key进行哈希处理，然后根据Key的哈希值将数据存储在哈希表中。 每当内存缓冲区已满时，数据就会以哈希表中的哈希顺序而不是键顺序刷新到文件中。 这些文件在RLSM中被归类为已刷新文件，并且已刷新文件的数据范围自然会重叠。</p>
+<p>如果数据可以以未排序状态刷出，那就减轻了压缩过程中的负担，因为数据仅被追加到现有文件中而不进行排序。我们将参与压缩过程的文件分为victims和targets。 在RLSM压缩中，仅将victims文件中的数据加载到内存中，然后重写（附加）到目标文件中。 与原始LSM相比，原始LSM必须将所有victims文件和targets文件都加载到内存中才能将它们全部排序并重写文件，因此，我们减少了内存消耗和重写次数。</p>
+<p>但是，刷出数据和重叠的文件会导致读取放大。 因为我们不能保证所需数据的位置，所以我们必须检查所有现有文件以找到条目。 我们通过根据每个文件的数据范围进行压缩来解决此问题。 在RLSM中，每个现有文件都有其键范围，该范围指示文件中的最小和最大键值对。 在压缩期间，通过使用哈希，将victim文件中的键值对附加到对应范围的target文件末尾。 使用这种机制，压缩后文件的范围不会重叠。 即使未对文件中的数据进行排序，数据也大致在文件级别有序。 在我们的压缩过程中创建的文件称为compacted<br>files。 在随后的压缩过程中，这些压缩文件成为target文件。</p>
+<p>我们将存储的逻辑模型分为两层：刷出文件的Level0层，压缩文件的Level1层。相比于多级的LSM变体简化的逻辑模型可以减少I/O放大。</p>
+<p>我们提出的RLSM树的功能流程如下：</p>
+<ul>
+<li>首先，来自用户的键值对将会以成为一个基于哈希的数据结构并被写入内存缓冲区。因此键值对是无序的</li>
+<li>如果内存缓冲区已满，则将键值对刷新到具有日志结构的文件中。 这意味着键值对不是按键顺序而是按哈希顺序顺序写入文件中。每当内存缓冲区满时都会创建刷出文件，并且它们位于Level0。位于Level0的文件的键值范围可以是重叠的。因为它们仅仅是从缓冲区刷出的数据（此时还没有merge）</li>
+</ul>
+<img src = "/images/屏幕截图 2021-01-26 192918.png">
+
+<ul>
+<li><p>当Level0层的文件数量超过阈值时，压缩算法被触发。首先RLSM检查是否有文件位于Level1，如果没有，RLSM选取victim文件并把它们移动到Level1，这样，RLSM在Level1中设置Key范围。如果Level1层有文件，RLSM还是在Level0层中选取victim文件，然后通过Kay的范围追加每个victim中的键值对到对应的Level1文件中。追加结束后，Level1的文件更新其元数据，victim文件就可以删除了。在Level0中选取victim的规则如下：</p>
+<ul>
+<li><p>Union Set：如果有个文件在Level0，其范围小于Level1中的某个文件，那么RLSM选择它作为victim文件。因为压缩可以仅仅通过串联文件来完成，而无需更新target文件的范围。当与第4-B节所述的实现技术结合使用时，可以减少所需的I/O。$RangeOfTheVictim ⊆ RangeOfTheTarget$</p>
+</li>
+<li><p>Density：如果没有并集，那将按照密度选取。选择高密度文件作为victim。 这是因为高密度文件中的键值对是聚集的，因此很有可能将它们附加到同一目标文件中。 我们可以通过追加聚集的键值对来减少I/O量。</p>
+<p>$Density = TotalNumberOfKVs/(Max-Min)$</p>
+</li>
+</ul>
+</li>
+<li><p>尽管有些文件在Level1，但是当要压缩的数据找不到要附加的适当范围时。 如果只是几个键值无法找到合适的范围，RLSM将创建一个具有新范围的新文件。 否则，RLSM将通过更改Level1文件范围的方式来附加victim文件。</p>
+</li>
+<li><p>当读取时，包含该Key的文件将首先被搜索。如果找到所需键值对属于其范围的文件，则将文件加载到内存缓冲区中。 将文件加载到内存中后，我们使用哈希函数在该文件中解析出数据。</p>
+</li>
+</ul>
+<p>图2展示了RLSM的压缩过程。在这个图中，每个键值对都处于哈希顺序。当Level0的文件数量超过阈值（在此示例中，阈值为3）时，RLSM开始压缩。（a）此时，由于Level1上没有文件，所以RLSM选择两个victim文件，将一个附加到另一上，并下移到Level1。在此示例中，RLSM选择Level0的第一和第二个文件作为victim因为它比其他的更密集（第一个文件的密度为0.5，第二个文件的密度0.75）。通过将第二个文件中的键值附加到第一个文件，文件的键值范围改为[1-8]。(b)因为现在在Level1中有一个文件，所以我们首先搜索该能被Level1文件覆盖的victim。但是，没有合适的文件，因此，选择范围为[10-17]密度为0.429的文件作为下一个要压缩的victim。只是将文件下放到Level1，并创建新范围，因为文件中的键值找不到要包含的范围。(c)压缩范围为[4-15]的最后一个文件时，RLSM首先为每个键值对找到具有正确范围的目标文件。前两个数据项{15,11}附加到文件[10,17]中，范围保持[10-17]，后两个项目{4,7}附加到文件[1,8]中，范围保持[1-8]。使用这种机制，即使文件中的键值对按随机顺序排列，Level1的文件也不会重叠并且具有不同的范围。现在假设必须压缩数据{9,23,18}，但是在Level1的现有文件中找不到它们的范围。在这种情况下，键值对[9]会附加到范围为[10-17]的文件中，因为它可以匹配进[10-17]。剩下的{23,18}将成为新文件，并设置新范围。</p>
+<h2 id="B-Load-balancing-for-files"><a href="#B-Load-balancing-for-files" class="headerlink" title="B. Load balancing for files"></a>B. Load balancing for files</h2><p>因为我们用Key的范围来压缩文件，文件的大小不是对齐的。鉴于数据位置的不确定性，读性能可能会因此下降，因此，我们需要进行负载平衡，以调节文件中存储的数据量。</p>
+<img src = "/images/屏幕截图 2021-01-26 214432.png">
+
+<p>此外，负载平衡需要更新和删除操作，在LSM中更新和删除都被认为是插入操作。特别地，删除操作是具有逻辑删除标志的插入操作。 在RLSM中，文件压缩时好像每个操作都是插入操作一样，并且更新和删除操作是在负载平衡才会进行。</p>
+<p>1）Partitioning：为了给文件分区，我们追踪每个文件的大小。当文件的大小超过阈值，负载平衡触发，把一个文件分成两个。分区时我们使用线性选择算法[^24]在数组中重排序数据，以找到k<sup>th</sup>小的元素。在RLSM中，我们找到（文件中键值对的数量/ 2）<sup>th</sup>个元素，以保持文件的键范围和文件大小之间的平衡。 所选的枢轴用于对文件中的数据进行分区，而分区过程的最差时间复杂度为O（n）。</p>
+<p>图3显示了使用选择算法的RLSM的负载平衡。 当我们想用键范围[1-29]分割文件时，我们将文件加载到内存缓冲区并应用线性选择算法。 我们找到第5个项目，因为键值对的数量在数组中为10。 在示例中，数据透视表（第5个项目）为“ 5”，我们可以将数组与选定的数据透视表分区。 分区后，我们可以获得范围为[1-5]和[6-29]的文件。 文件的范围不会平均分配，但文件大小彼此相等。 最后，我们将两部分写入Level1中的每个文件。</p>
+<p>2）Merging：合并是指使用较小的Key范围来串联文件。 在负载平衡期间，将检查范围很小的文件。 选择范围较小的文件时，还将选择范围较小或范围较大的目标文件。然后将两个文件合并，并更新它们的范围。 在图3中，选择范围为[33-35]的文件作为要合并的victim文件。 此外，对于目标文件，我们可以在范围较小的文件[1-29]和范围较大的文件[36-42]之间进行选择。由于范围为[36-42]的文件数据较少，因此我们选择该文件作为目标。 最后，将键范围较小的两个文件[33-35]和[36-42]合并为一个文件。</p>
+<h1 id="IV-IMPLEMENTATION"><a href="#IV-IMPLEMENTATION" class="headerlink" title="IV. IMPLEMENTATION"></a>IV. IMPLEMENTATION</h1><p>本章我们将描述RLSM的实现，我们的实现基于HBase 1.2.5和Ubuntu 14.04，kernel 4.1.30</p>
+<h2 id="A-Appending-data"><a href="#A-Appending-data" class="headerlink" title="A. Appending data"></a>A. Appending data</h2><p>当数据驻留在内存缓冲区中时，键的哈希值用于返回相应的值。当将内存缓冲区刷新到存储器中的文件时，数据的文件偏移量将记录到键的哈希表中。写入数据后，包括哈希表在内的元数据将写入文件中。 如图4所示，“文件信息”部分写在两个部分（数据/元数据部分）的后面。最后一部分保留了数据部分和元数据部分的偏移量。</p>
+<p>我们把数据追加到target文件时，首先加载“文件信息”数据。然后通过“文件信息”RLSM读取target文件的元数据。它将新数据写入存储数据的最后位置。 此时，用于附加数据的哈希表将合并到内存缓冲区中的现有哈希表。 数据附加过程完成后，将合并的哈希集和“文件信息”数据写入文件末尾。</p>
+<p>当在已存在的文件中追加更新（删除）数据，更新（删除）的数据会引发哈希碰撞，因为他们插入了同样的Key。自从Java HashMap不允许重复键，因此新数据集将覆盖旧数据集。 通过这种机制，我们可以获得旧数据集的信息，并使用单独的列表将其作为无效数据进行管理。 无效数据在负载平衡过程中处理。</p>
+<h2 id="B-Victim-selection"><a href="#B-Victim-selection" class="headerlink" title="B. Victim selection"></a>B. Victim selection</h2><p>如上所述，当我们选择要压缩的victim文件时，第一个条件是并集。 如果victim文件在Level0的范围是Level1的文件范围的子集，我们将不进行实际的I/O来附加数据。 在这种情况下，我们可以通过简单地链接这两个文件并合并它们的元数据来执行压缩。 因此，只有第一个文件的元数据会被更新和重写。 元数据的哈希集现在包括文件信息，数据存储位置以及文件偏移量。 使用这种技术，我们可以进一步减少I/O量。然而随着链接文件数量的增加，它可能会导致在磁盘上的随机读取。因此，需要在负载平衡过程中进行定期清理。</p>
+<img src = "/images/屏幕截图 2021-01-26 222422.png">
+
+<h2 id="C-Data-indexing"><a href="#C-Data-indexing" class="headerlink" title="C. Data indexing"></a>C. Data indexing</h2><p>原始的HBase使用块级布隆过滤器来索引数据块，考虑到读取块缓存中的高命中率，我们仍然使用布隆过滤器。如果在读取块缓存中错过了该操作，则应查询永久存储中存储的文件。在RLSM中，Level0的文件数据用键级Bloom过滤器索引。这是因为Level0的文件的键范围重叠。该布隆过滤器的内存消耗不大，因为Level0的数据量受到限制。</p>
+<p>除了用于Level0的文件的Bloom过滤器之外，我们还使用Level1的文件的索引树。索引树的每个节点都在Level1中指示一个文件，并且这些节点由相应文件的最小键索引。通过这些节点，我们创建了一个二进制搜索树。当搜索索引树时，我们尝试在键小于所需键的节点中找到键最大的节点。对于这些节点，我们还检查所需数据是否位于该节点的数据范围内。如果数据在该范围内，则使用哈希值找到所需数据的确切文件偏移量。</p>
+<h1 id="V-EVALUATION"><a href="#V-EVALUATION" class="headerlink" title="V. EVALUATION"></a>V. EVALUATION</h1><h2 id="A-Environment-setting"><a href="#A-Environment-setting" class="headerlink" title="A. Environment setting"></a>A. Environment setting</h2><p>HBase通常使用Hadoop分布式文件系统（HDFS）作为底层文件系统。在此次研究中，我们在单机模式下运行Hbase来规避HDFS节点间网络设置所带来的影响。实验机器有32核心(8 cores * 4 sockets)，16G DRAM，接下来的实验中使用openJDK1.8.0，JVM堆大小为4GB，磁盘使用Intel P3700 NVMe SSD[^25]。</p>
+<p>HBase把堆分为三个空间：第一个是写cache（memstore），第二个是读块级cache，第三个空间供系统使用，例如存储元数据和索引数据。划分比例为4（内存存储区）：4（读取块缓存）：2（系统使用率）; 但是，该比率很灵活，可以根据工作负载模式进行调整。我们仅仅使用1.6GB memstore中的100MB作为写缓冲区，其余的memstore用于写缓冲区的快照。 当100MB写缓冲区中充满了键值对时，RLSM对写缓冲区进行快照，并以日志结构方式将键值对向下写入文件。 因此，在Level0中，基本文件大小约为100MB。 触发分区的阈值大小为120MB。 结果，Level1中文件的平均大小约为60MB。</p>
+<h2 id="B-Write-performance"><a href="#B-Write-performance" class="headerlink" title="B. Write performance"></a>B. Write performance</h2><p>首先，我们测试了包含写放大的写性能提升。我们可以用在HBase执行的时候使用Linux vmstat命令测试磁盘写入量。我们用inster-only负载执行YCSB实验并用各种大小的用户数据测量写性能。</p>
+<img src = "/images/屏幕截图 2021-01-26 230919.png">
+
+<p>图5展示了结果。原始的HBase的写放大随着用户数据集的增长而增长，最终在128GB的数据集下到达13。然而基于RLSM的HBase可以显著减少写放大。在128GB的数据集下写放大率是5.29。在64GB下的写放大为3。我们可以看到基于RLSM的HBase在64GB数据集下相比于原始HBase获得了33%的写吞吐量提升。</p>
+<p>通过压缩减少I/O同样可以减少执行时间。我们测量了先前YCSB实验在64GB下的压缩时间。图6展示了压缩的执行时间。在原始的HBase中，压缩时间随时间增加，这意味着负载随压缩增长因为要排序的数据增加了，并且随着时间的流逝，应该将排序后的数据重写到存储中。但是，由于RLSM中的压缩只是将Level0的数据附加到Level1的目标文件，因此RLSM的压缩时间随时间变化相对恒定。 压缩时间中的一个影响因素是负载平衡（例如，分区）。但是，由于负载平衡不经常发生，因此它不会显着影响压缩时间。 即使发生负载平衡，大小相对较大或较小的目标文件的数量也不会很大。</p>
+<img src = "/images/屏幕截图 2021-01-27 093235.png">
+
+<h2 id="C-Memory-consumption-and-GC-overhead"><a href="#C-Memory-consumption-and-GC-overhead" class="headerlink" title="C. Memory consumption and GC overhead"></a>C. Memory consumption and GC overhead</h2><p>压缩过程会消耗内存以对内存缓冲区中的数据进行排序，并且缓冲区是临时的。 因此，这种内存使用情况会污染内存中的缓存。 这增加了在JVM去GC的可能性。 在RLSM中，我们不会在压缩过程中对数据进行排序； 因此，它将数据仅从victim文件（而非目标文件）加载到内存缓冲区。 这可以减少压缩过程的内存消耗。 对于索引，我们对Level0的数据使用了额外的Bloom过滤器，并且基于RLSM的索引数据消耗的内存空间比原始HBase略多。</p>
+<p>使用JProfiler [^26]，我们可以测量内存消耗，并将内存消耗计算为（对象数*对象大小）。由于内存消耗在实验期间会发生波动，因此我们评估了每个内存对象的最大内存使用率。 结果显示在图8中，图表展示了标准化的值。 可以看出，压缩过程的内存消耗明显减少了32％。 memstore的消耗几乎相同，因为它在写缓存中起作用。 如上所述，RLSM与原始LSM相比，索引对象占用的存储空间略大。 索引键值对的开销为8％。 但是，这种增加的消耗可以由减少的压缩空间来覆盖，并且总的内存消耗减少了24％。</p>
+<img src = "/images/屏幕截图 2021-01-27 094619.png">
+
+<p>在JVM环境下减少的内存消耗也就减少了GC开销，通过减少临时内存的使用，垃圾内存被减少并且GC的总量自然也被减少。在图9中展示了这JVM暂停的次数，这也是GC的次数。在原始的HBase中，GC经常发生，并且持续时间长。平均1328ms一次CG，基于RLSM的HBase的GC时间减少到1198ms一次。与原来相比减少了10％。 在JVM的GC操作期间，将阻止HBase的其他操作，直到完成GC。 因此，在GC期间请求的操作的等待时间变得更长。 使用RLSM，可以减轻负担，更快地完成GC，并可以缩短等待时间。</p>
+<img src = "/images/屏幕截图 2021-01-27 095504.png">
+
+<h2 id="D-Performance-under-the-mixed-workload"><a href="#D-Performance-under-the-mixed-workload" class="headerlink" title="D. Performance under the mixed workload"></a>D. Performance under the mixed workload</h2><p>图7展示了混合负载下的实验结果。为了方便评估，基本数据集的大小为64GB，我们进行各种工作量类型的实验。 当读取与更新的比例为5：5时，性能增益最大。当操作次数为32M时，吞吐量达到1700ops / sec。 从（b）和（d）中可以看出，当我们使用读取密集型工作负载时，性能提升约为8％。在只读工作负载的情况下，由于RLSM使用基于哈希的元数据，因此吞吐量最多可增加10％。</p>
+<p>在我们的RLSM中，响应于读取操作（尤其是扫描操作），通过负载平衡过程将文件大小调整为相对较小。 测得的扫描性能如图7（e）和7（f）所示。在图中，S<sub>S</sub>表示扫描范围小于文件大小，S<sub>L</sub>表示扫描范围大于文件大小。在图7（e）中，基于RLSM的HBase实现了原始Hbase95％的性能。</p>
+<img src = "/images/屏幕截图 2021-01-27 094141.png">
+
+<p>但是，当扫描范围增加时，开销会稍微增加。我们可以在图7（f）中看到大约10％的扫描性能下降。由于RLSM加载具有相应范围的文件并对内存中加载的数据进行排序以响应扫描操作，因此导致性能下降。 请注意，其他基于基于散列的数据结构（LSM-trie [^14]）或未排序的数据（Wisckey [^16]）的LSM变体不支持扫描查询。</p>
+<h1 id="VI-CONCLUSION-AND-FUTURE-WORK"><a href="#VI-CONCLUSION-AND-FUTURE-WORK" class="headerlink" title="VI. CONCLUSION AND FUTURE WORK"></a>VI. CONCLUSION AND FUTURE WORK</h1><p>LSM树数据结构通过将数据刷新到日志结构并推迟复杂的操作（例如对数据重新排序）而具有写密集型工作负载的优势。这些延迟的操作将导致写放大和性能下降。在本文中，我们提出了Ranged LSM树，以更有效地处理压缩操作。使用RLSM，可以按哈希顺序管理数据；因此，通过根据范围将受害者数据附加到现有数据来进行压缩。我们的RLSM导致更少的写放大和更少的内存消耗。减少的内存消耗可减少JVM的GC开销，从而增加吞吐量和延迟。</p>
+<p>在将来的工作中，我们将修改算法以适应混合的工作负载。混合的工作负载可能导致Level1中的不对称索引树，或级联分区和合并。因此，我们必须解决由混合的工作负载（例如Zipfian）引起的副作用。另外，为了考虑分布式文件系统的影响，我们将对带有Hadoop文件系统（HDFS）的HBase进行试验。</p>
+<h1 id="REFERENCES"><a href="#REFERENCES" class="headerlink" title="REFERENCES"></a>REFERENCES</h1><p>[^1]: P. Shetty, R. P. Spillane, R. Malpani, B. Andrews, J. Seyster, and E. Zadok, “Building workload-independent storage with vt-trees.” in FAST, 2013, pp. 17–30.<br>[^2]: S. Ghemawat and J. Dean. (2011) Leveldb. [Online]. Available: URL:<a href="https://github.com/google/leveldb,http://leveldb.org" target="_blank" rel="noopener">https://github.com/google/leveldb,http://leveldb.org</a><br>[^3]: Facebook. (2012, may) Rocksdb. [Online]. Available: <a href="http://rocksdb.org/" target="_blank" rel="noopener">http://rocksdb.org/</a><br>[^4]: C. Lee, D. Sim, J. Y. Hwang, and S. Cho, “F2fs: A new file system for flash storage.” in FAST, 2015, pp. 273–286.<br>[^5]: M. Rosenblum and J. K. Ousterhout, “The design and implementation of a log-structured file system,” ACM Transactions on Computer Systems (TOCS), vol. 10, no. 1, pp. 26–52, 1992.<br>[^6]: A. Cassandra. (2010, Nov.) Apache cassandra. [Online]. Available: <a href="http://cassandra.apache.org/" target="_blank" rel="noopener">http://cassandra.apache.org/</a><br>[^7]: P. O’Neil, E. Cheng, D. Gawlick, and E. O’Neil, “The log-structured merge-tree (lsm-tree),” Acta Informatica, vol. 33, no. 4, pp. 351–385, 1996.<br>[^8]: (2012, Nov.) Hyperleveldb. [Online]. Available: <a href="https://github.com/rescrv/HyperLevelDB" target="_blank" rel="noopener">https://github.com/rescrv/HyperLevelDB</a><br>[^9]: A. H. project. (2010, Nov.) Apache hbase. [Online]. Available: <a href="http://hbase.apache.org/" target="_blank" rel="noopener">http://hbase.apache.org/</a><br>[^10]: B. F. Cooper, R. Ramakrishnan, U. Srivastava, A. Silberstein, P. Bo￾hannon, H.-A. Jacobsen, N.Puz, D. Weaver, and R. Yerneni, “Pnuts: Yahoo!’s hosted data serving platform,” Proceedings of the VLDB Endowment, vol. 1, no. 2, pp. 1277–1288, 2008.<br>[^11]: Z. Fong and R. Shroff. (2014, Jun.) Hydrabase – the evolution of hbase@facebook. [Online]. Available: <a href="https://code.facebook.com/posts/321111638043166/hydrabase-the-evolution-of-hbase-facebook/" target="_blank" rel="noopener">https://code.facebook.com/posts/321111638043166/hydrabase-the-evolution-of-hbase-facebook/</a><br>[^12]: (2010, Nov.) Facebook’s new real-time messaging sys￾tem: Hbase to store 135+ billion messages a month. [Online]. Available: <a href="http://highscalability.com/blog/2010/11/16/facebooks-new-real-time-messaging-system-hbase-to-store-135.html" target="_blank" rel="noopener">http://highscalability.com/blog/2010/11/16/facebooks-new-real-time-messaging-system-hbase-to-store-135.html</a><br>[^13]: R. Sears and R. Ramakrishnan, “blsm: a general purpose log structured merge tree,” in Proceedings of the 2012 ACM SIGMOD International Conference on Management of Data. ACM, 2012, pp. 217–228.<br>[^14]: X. Wu, Y. Xu, Z. Shao, and S. Jiang, “Lsm-trie: an lsm-tree-based ultra-large key-value store for small data,” in Proceedings of the 2015 USENIX Conference on Usenix Annual Technical Conference. USENIX Association, 2015, pp. 71–82.<br>[^15]: T. Yao, J. Wan, P. Huang, X. He, F. Wu, and C. Xie, “Building efficient key-value stores via a lightweight compaction tree,” ACM Trans. Storage, vol. 13, no. 4, pp. 29:1–29:28, Nov. 2017. [Online].Available: <a href="http://doi.acm.org/10.1145/3139922" target="_blank" rel="noopener">http://doi.acm.org/10.1145/3139922</a><br>[^16]: L. Lu, T. S. Pillai, H. Gopalakrishnan, A. C. Arpaci-Dusseau, and R. H. Arpaci-Dusseau, “Wisckey: Separating keys from values in ssd-conscious storage,” ACM Transactions on Storage (TOS), vol. 13, no. 1,p. 5, 2017.<br>[^17]: Z. Zhang, Y. Yue, B. He, J. Xiong, M. Chen, L. Zhang, and N. Sun, “Pipelined compaction for the lsm-tree,” in Parallel and Distributed Processing Symposium, 2014 IEEE 28th International. IEEE, 2014, pp. 777–786.<br>[^18]: Y. Yue, B. He, Y. Li, and W. Wang, “Building an efficient put-intensive key-value store with skip-tree,” IEEE Transactions on Parallel and Distributed Systems, vol. 28, no. 4, pp. 961–973, 2017.<br>[^19]: P. Raju, R. Kadekodi, V. Chidambaram, and I. Abraham, “Pebblesdb: Building key-value stores using fragmented log-structured merge trees,” in Proceedings of the 26th Symposium on Operating Systems Principles. ACM, 2017, pp. 497–514.<br>[^20]: F.-F. Pan, Y.-L. Yue, and J. Xiong, “dcompaction: Speeding up com￾paction of the lsm-tree via delayed compaction,” Journal of Computer Science and Technology, vol. 32, no. 1, pp. 41–54, 2017.<br>[^21]: P. Wang, G. Sun, S. Jiang, J. Ouyang, S. Lin, C. Zhang, and J. Cong, “An efficient design and implementation of lsm-tree based key-value store on open-channel ssd,” in Proceedings of the Ninth European Conference on Computer Systems. ACM, 2014, p. 16.<br>[^22]: O. Rodeh, J. Bacik, and C. Mason, “Btrfs: The linux b-tree filesystem,” ACM Transactions on Storage (TOS), vol. 9, no. 3, p. 9, 2013.<br>[^23]: A. Awasthi, A. Nandini, A. Bhattacharya, and P. Sehgal, “Hybrid hbase: Leveraging flash ssds to improve cost per throughput of hbase,” in Proceedings of the 18th International Conference on Management of Data. Computer Society of India, 2012, pp. 68–79.<br>[^24]: M. Blum, R. W. Floyd, V. Pratt, R. L. Rivest, and R. E. Tarjan, “Time bounds for selection,” Journal of computer and system sciences, vol. 7, no. 4, pp. 448–461, 1973.<br>[^25]: IntelR . (2015) IntelR ssd dc p3700 for nvme. [Online]. Available: <a href="https://ark.intel.com/products/79618/Intel-SSD-DC-P3700-Series-1" target="_blank" rel="noopener">https://ark.intel.com/products/79618/Intel-SSD-DC-P3700-Series-1</a> 6TB-12-Height-PCIe-3 0-20nm-MLC<br>[^26]: E.-y. Cho, “Jprofiler: Code coverage analysis tool for omp project,” Technical Report: CMU 17-654 &amp; 17, Tech. Rep., 2006.<br>[^a1]: 读放大与获取所需数据所要访问的数据数量数密切相关。<br>[^a2]: 写放大率是指存储数据时的写I/O与数据的比例</p>
+</div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">PhenoGao</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://xonlab.com/2021/01/26/%E8%AE%BA%E6%96%87%E7%BF%BB%E8%AF%91Efficient%20key-value%20stores%20with%20Ranged/">http://xonlab.com/2021/01/26/%E8%AE%BA%E6%96%87%E7%BF%BB%E8%AF%91Efficient%20key-value%20stores%20with%20Ranged/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://xonlab.com" target="_blank">XonLab</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%BA%E6%96%87%E7%BF%BB%E8%AF%91/">论文翻译</a><a class="post-meta__tags" href="/tags/LSM-tree/">LSM-tree</a></div><div class="post_share"><div class="social-share" data-image="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-4525o7.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"/><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js"></script></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2021/01/24/CS144%20%E2%85%A5%20Routing/"><img class="next-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-mpv1o8.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">CS144 Ⅵ Routing</div></div></a></div></nav><div class="relatedPosts"><div class="relatedPosts_headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts_list"><div class="relatedPosts_item"><a href="/2021/01/10/论文翻译The Log-Structured Merge-Tree（LSM-Tree）/" title="论文翻译|The Log-Structured Merge-Tree（LSM-Tree）"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/wallhaven-mpv1o8.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-10</div><div class="relatedPosts_title">论文翻译|The Log-Structured Merge-Tree（LSM-Tree）</div></div></a></div></div></div></article></main><footer id="footer" data-type="color"><div id="footer-wrap"><div class="copyright">&copy;2018 - 2021 By PhenoGao</div></div></footer></div><section class="rightside" id="rightside"><div id="rightside-config-hide"><button id="readmode" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="font_plus" title="放大字体"><i class="fas fa-plus"></i></button><button id="font_minus" title="缩小字体"><i class="fas fa-minus"></i></button><button id="darkmode" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" title="设置"><i class="fas fa-cog"></i></button><button class="close" id="mobile-toc-button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></section><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script src="https://cdn.jsdelivr.net/npm/animejs@latest/anime.min.js"></script><script src="/js/third-party/fireworks.js"></script><script id="ribbon_piao" mobile="true" src="/js/third-party/piao.js"></script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module" defer></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js" async></script></body></html>
