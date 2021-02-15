@@ -1,0 +1,739 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kubernetes-dubbo部署 | XonLab</title><meta name="description" content="前情回顾 K8S核心资源管理方法（CRID） 陈述式管理 –&gt; 基于众多kuberctl命令 声明式管理 –&gt; 基于K8S资源配置清单 GUI式管理 –&gt; 基于K8S仪表盘（dashboard）   K8S的CNI网络插件 种类众多，以flannel为例 三种常用工作模式 优化SNAT规则   K8S服务发现 集群网络 –&gt; Cluster IP Service资源 –&amp;g"><meta name="keywords" content="Docker,Kubernetes"><meta name="author" content="PhenoGao"><meta name="copyright" content="PhenoGao"><meta name="format-detection" content="telephone=no"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://xonlab.com/2020/04/03/Kubernetes-dubbo%E9%83%A8%E7%BD%B2/"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin="crossorigin"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><meta property="og:type" content="article"><meta property="og:title" content="Kubernetes-dubbo部署"><meta property="og:url" content="http://xonlab.com/2020/04/03/Kubernetes-dubbo%E9%83%A8%E7%BD%B2/"><meta property="og:site_name" content="XonLab"><meta property="og:description" content="前情回顾 K8S核心资源管理方法（CRID） 陈述式管理 –&gt; 基于众多kuberctl命令 声明式管理 –&gt; 基于K8S资源配置清单 GUI式管理 –&gt; 基于K8S仪表盘（dashboard）   K8S的CNI网络插件 种类众多，以flannel为例 三种常用工作模式 优化SNAT规则   K8S服务发现 集群网络 –&gt; Cluster IP Service资源 –&amp;g"><meta property="og:image" content="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-zaksheuskaya-1616403.jpg"><meta property="article:published_time" content="2020-04-03T06:01:28.000Z"><meta property="article:modified_time" content="2021-02-15T04:19:14.340Z"><meta name="twitter:card" content="summary"><script>var activateDarkMode = function () {
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000')
+  }
+}
+var activateLightMode = function () {
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fff')
+  }
+}
+
+var getCookies = function (name) {
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop().split(';').shift()
+}
+
+var autoChangeMode = 'false'
+var t = getCookies('theme')
+if (autoChangeMode === '1') {
+  var isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+  var isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+  var isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+  if (t === undefined) {
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport) {
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour <= 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+      if (Cookies.get('theme') === undefined) {
+        e.matches ? activateDarkMode() : activateLightMode()
+      }
+    })
+  } else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode === '2') {
+  now = new Date()
+  hour = now.getHours()
+  isNight = hour <= 6 || hour >= 18
+  if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if (t === 'dark') activateDarkMode()
+  else if (t === 'light') activateLightMode()
+}</script><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><link rel="prev" title="Kubernetes-apollo部署" href="http://xonlab.com/2020/04/04/Kubernetes-Apollo%E9%83%A8%E7%BD%B2/"><link rel="next" title="《娱乐至死》3~4章" href="http://xonlab.com/2020/04/02/%E3%80%8A%E5%A8%B1%E4%B9%90%E8%87%B3%E6%AD%BB%E3%80%8B3-4%E7%AB%A0/"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  bookmark: {
+    message_prev: '按',
+    message_next: '键将本页加入书签'
+  },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  justifiedGallery: {
+    js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+    css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+  },
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  isPhotoFigcaption: false,
+  islazyload: true,
+  isanchor: false    
+}</script><script>var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isSidebar: true
+  }</script><noscript><style>
+#nav {
+  opacity: 1
+}
+.justified-gallery img{
+  opacity: 1
+}
+</style></noscript><meta name="generator" content="Hexo 4.2.1"></head><body><canvas class="fireworks"></canvas><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="https://edu-102.oss-cn-beijing.aliyuncs.com/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">105</div></a></div></div><div class="mobile_data_item is-center">      <div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div><div class="length_num">68</div></a></div></div><div class="mobile_data_item is-center">     <div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div><div class="length_num">7</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div></div></div><i class="fas fa-arrow-right on" id="toggle-sidebar"></i><div id="sidebar"><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#前情回顾"><span class="toc-number">1.</span> <span class="toc-text">前情回顾</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Dubbo微服务概述"><span class="toc-number">2.</span> <span class="toc-text">Dubbo微服务概述</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#dubbo什么？"><span class="toc-number">2.1.</span> <span class="toc-text">dubbo什么？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#dubbo能做什么？"><span class="toc-number">2.2.</span> <span class="toc-text">dubbo能做什么？</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#实验架构详解"><span class="toc-number">3.</span> <span class="toc-text">实验架构详解</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#部署zookeeper集群"><span class="toc-number">4.</span> <span class="toc-text">部署zookeeper集群</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#集群规划"><span class="toc-number">4.1.</span> <span class="toc-text">集群规划</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#安装jdk1-8（3台zk角色主机）"><span class="toc-number">4.2.</span> <span class="toc-text">安装jdk1.8（3台zk角色主机）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#安装zookeeper（3台zk角色主机）"><span class="toc-number">4.3.</span> <span class="toc-text">安装zookeeper（3台zk角色主机）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#解压配置"><span class="toc-number">4.3.1.</span> <span class="toc-text">解压配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#myid"><span class="toc-number">4.3.2.</span> <span class="toc-text">myid</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#做dns解析"><span class="toc-number">4.3.3.</span> <span class="toc-text">做dns解析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#依次启动"><span class="toc-number">4.3.4.</span> <span class="toc-text">依次启动</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#常用命令"><span class="toc-number">4.3.5.</span> <span class="toc-text">常用命令</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#部署jenkins"><span class="toc-number">5.</span> <span class="toc-text">部署jenkins</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#准备镜像"><span class="toc-number">5.1.</span> <span class="toc-text">准备镜像</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#自定义Dockerfile"><span class="toc-number">5.2.</span> <span class="toc-text">自定义Dockerfile</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#制作自定义镜像"><span class="toc-number">5.3.</span> <span class="toc-text">制作自定义镜像</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#创建infra仓库"><span class="toc-number">5.4.</span> <span class="toc-text">创建infra仓库</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#推送镜像"><span class="toc-number">5.5.</span> <span class="toc-text">推送镜像</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#创建kubernetes命名空间，私有仓库鉴权"><span class="toc-number">5.6.</span> <span class="toc-text">创建kubernetes命名空间，私有仓库鉴权</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#准备共享存储"><span class="toc-number">5.7.</span> <span class="toc-text">准备共享存储</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#准备资源配置清单"><span class="toc-number">5.8.</span> <span class="toc-text">准备资源配置清单</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#应用资源配置清单"><span class="toc-number">5.9.</span> <span class="toc-text">应用资源配置清单</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#解析域名"><span class="toc-number">5.10.</span> <span class="toc-text">解析域名</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#配置jenkins加速"><span class="toc-number">5.11.</span> <span class="toc-text">配置jenkins加速</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#浏览器访问"><span class="toc-number">5.12.</span> <span class="toc-text">浏览器访问</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#页面配置jenkins"><span class="toc-number">5.13.</span> <span class="toc-text">页面配置jenkins</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#初始化密码"><span class="toc-number">5.13.1.</span> <span class="toc-text">初始化密码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#跳过安装插件"><span class="toc-number">5.13.2.</span> <span class="toc-text">跳过安装插件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#更改admin密码"><span class="toc-number">5.13.3.</span> <span class="toc-text">更改admin密码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#使用admin登录"><span class="toc-number">5.13.4.</span> <span class="toc-text">使用admin登录</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#调整安全选项"><span class="toc-number">5.13.5.</span> <span class="toc-text">调整安全选项</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#安装Blue-Ocean插件"><span class="toc-number">5.13.6.</span> <span class="toc-text">安装Blue Ocean插件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#配置New-job"><span class="toc-number">5.14.</span> <span class="toc-text">配置New job</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Pipeline-Script"><span class="toc-number">5.15.</span> <span class="toc-text">Pipeline Script</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#最后的准备工作"><span class="toc-number">6.</span> <span class="toc-text">最后的准备工作</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#检查jenkins容器里的docker客户端"><span class="toc-number">6.1.</span> <span class="toc-text">检查jenkins容器里的docker客户端</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#检查jenkins容器里的SSH-key"><span class="toc-number">6.2.</span> <span class="toc-text">检查jenkins容器里的SSH key</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#部署maven软件"><span class="toc-number">6.3.</span> <span class="toc-text">部署maven软件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#制作dubbo微服务的底包镜像"><span class="toc-number">6.4.</span> <span class="toc-text">制作dubbo微服务的底包镜像</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#交付dubbo微服务至kubernetes集群"><span class="toc-number">7.</span> <span class="toc-text">交付dubbo微服务至kubernetes集群</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#dubbo服务提供者（dubbo-demo-service）"><span class="toc-number">7.1.</span> <span class="toc-text">dubbo服务提供者（dubbo-demo-service）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#通过jenkins进行一次CI"><span class="toc-number">7.1.1.</span> <span class="toc-text">通过jenkins进行一次CI</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#检查harbor仓库内镜像"><span class="toc-number">7.1.2.</span> <span class="toc-text">检查harbor仓库内镜像</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#准备k8s资源配置清单"><span class="toc-number">7.1.3.</span> <span class="toc-text">准备k8s资源配置清单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#应用资源配置清单-1"><span class="toc-number">7.1.4.</span> <span class="toc-text">应用资源配置清单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#检查docker运行情况及zk里的信息"><span class="toc-number">7.1.5.</span> <span class="toc-text">检查docker运行情况及zk里的信息</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#dubbo-monitor工具"><span class="toc-number">7.2.</span> <span class="toc-text">dubbo-monitor工具</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#准备docker镜像"><span class="toc-number">7.2.1.</span> <span class="toc-text">准备docker镜像</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#下载源码并解压"><span class="toc-number">7.2.1.1.</span> <span class="toc-text">下载源码并解压</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#修改配置"><span class="toc-number">7.2.1.2.</span> <span class="toc-text">修改配置</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#制作镜像"><span class="toc-number">7.2.1.3.</span> <span class="toc-text">制作镜像</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#解析域名-1"><span class="toc-number">7.2.2.</span> <span class="toc-text">解析域名</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#准备k8s资源配置清单-1"><span class="toc-number">7.2.3.</span> <span class="toc-text">准备k8s资源配置清单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#应用资源配置清单-2"><span class="toc-number">7.2.4.</span> <span class="toc-text">应用资源配置清单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#浏览器访问-1"><span class="toc-number">7.2.5.</span> <span class="toc-text">浏览器访问</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#dubbo服务消费者（dubbo-demo-consumer）"><span class="toc-number">7.3.</span> <span class="toc-text">dubbo服务消费者（dubbo-demo-consumer）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#通过jenkins进行一次CI-1"><span class="toc-number">7.3.1.</span> <span class="toc-text">通过jenkins进行一次CI</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#检查harbor仓库内镜像-1"><span class="toc-number">7.3.2.</span> <span class="toc-text">检查harbor仓库内镜像</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#解析域名-2"><span class="toc-number">7.3.3.</span> <span class="toc-text">解析域名</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#准备k8s资源配置清单-2"><span class="toc-number">7.3.4.</span> <span class="toc-text">准备k8s资源配置清单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#应用资源配置清单-3"><span class="toc-number">7.3.5.</span> <span class="toc-text">应用资源配置清单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#检查docker运行情况及dubbo-monitor"><span class="toc-number">7.3.6.</span> <span class="toc-text">检查docker运行情况及dubbo-monitor</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#浏览器访问-2"><span class="toc-number">7.3.7.</span> <span class="toc-text">浏览器访问</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#实战维护dubbo微服务集群"><span class="toc-number">7.4.</span> <span class="toc-text">实战维护dubbo微服务集群</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#k8s灾难性毁灭测试"><span class="toc-number">7.5.</span> <span class="toc-text">k8s灾难性毁灭测试</span></a></li></ol></li></ol></div></div></div><div id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-zaksheuskaya-1616403.jpg)"><nav id="nav"><span class="pull-left" id="blog_name"><a class="blog_title" id="site-name" href="/">XonLab</a></span><span class="pull-right menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div><span class="toggle-menu close"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></span></span></nav><div id="post-info"><div id="post-title"><div class="posttitle">Kubernetes-dubbo部署</div></div><div id="post-meta"><div class="meta-firstline"><time class="post-meta__date" title="发表于 2020-04-03 14:01:28"><i class="fa-fw far fa-calendar-alt"></i> 发表于 2020-04-03</time></div><div class="meta-secondline"> <span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta__icon"></i><span>字数总计:</span><span class="word-count">7.5k</span><span class="post-meta__separator">|</span><i class="far fa-clock fa-fw post-meta__icon"></i><span>阅读时长: 40 分钟</span></span></div><div class="meta-thirdline"><span class="post-meta-pv-cv"><span class="post-meta__separator">|</span><i class="far fa-eye fa-fw post-meta__icon"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span><span class="post-meta-commentcount"></span></div></div></div></header><main class="layout_post" id="content-inner"><article id="post"><div class="post-content" id="article-container"><h1 id="前情回顾"><a href="#前情回顾" class="headerlink" title="前情回顾"></a>前情回顾</h1><ul>
+<li>K8S核心资源管理方法（CRID）<ul>
+<li>陈述式管理 –&gt; 基于众多kuberctl命令</li>
+<li>声明式管理 –&gt; 基于K8S资源配置清单</li>
+<li>GUI式管理 –&gt; 基于K8S仪表盘（dashboard）</li>
+</ul>
+</li>
+<li>K8S的CNI网络插件<ul>
+<li>种类众多，以flannel为例</li>
+<li>三种常用工作模式</li>
+<li>优化SNAT规则</li>
+</ul>
+</li>
+<li>K8S服务发现<ul>
+<li>集群网络 –&gt; Cluster IP</li>
+<li>Service资源 –&gt; Service Name</li>
+<li>Coredns软件 –&gt; 实现了Service Name和Cluster IP的自动关联</li>
+</ul>
+</li>
+<li>K8S的服务暴露<ul>
+<li>Ingress资源 –&gt; 专用于暴露7层应用到K8S集群外的一种核心资源（http/https）</li>
+<li>Ingress控制器 –&gt; 一个简化版的nginx（调度流量） + go脚本（动态识别yaml）</li>
+<li>Traefik软件 –&gt; 实现了Ingress控制器的一个软件</li>
+</ul>
+</li>
+<li>Dashboard（仪表盘）<ul>
+<li>基于RBAC认证的一个GUI资源管理软件</li>
+<li>连个常用版本：V1.8.3和v1.10.1</li>
+<li>K8S如何基于RBAC进行鉴权</li>
+<li>手撕ssl证书签发</li>
+</ul>
+</li>
+</ul>
+<h1 id="Dubbo微服务概述"><a href="#Dubbo微服务概述" class="headerlink" title="Dubbo微服务概述"></a>Dubbo微服务概述</h1><h2 id="dubbo什么？"><a href="#dubbo什么？" class="headerlink" title="dubbo什么？"></a>dubbo什么？</h2><ul>
+<li>dubbo是阿里巴巴SOA服务化治理方案的核心框架，每天为2000+个服务提供3000000000+次访问量支持，并被广泛应用于阿里巴巴集团的各成员站点</li>
+<li>dubbo是一个分布式服务框架，致力于提供高可用性能和透明化的RPC远程服务调用方案，以及SOA服务治理方案。</li>
+<li>简单的说，dubbo就是一个服务框架，如果没有分布式的需求，其实是不需要用的，只是在分布式的时候，才有dubbo这样的分布式服务框架的需求，并且本质上是个服务调用的东西，说白了就是个远程服务调用的分布式框架。</li>
+</ul>
+<img src = "/images/m_3cc763ccfe6967147255ec9ca0c48b53_r.png">
+
+<h2 id="dubbo能做什么？"><a href="#dubbo能做什么？" class="headerlink" title="dubbo能做什么？"></a>dubbo能做什么？</h2><ul>
+<li>透明化的远程方法调用，就像调用本地方法一样调用远程方法，只需要配置，没有任何API侵入。</li>
+<li>软负载均衡及容错机制，可在内网替代F5等硬件负载均衡器，降低成本，减少单点。</li>
+<li>服务自动注册与发现，不再需要写死服务提供方地址，注册中心基于接口名查询服务提供者的IP地址，并且能够平滑添加或删除服务提供者。</li>
+</ul>
+<h1 id="实验架构详解"><a href="#实验架构详解" class="headerlink" title="实验架构详解"></a>实验架构详解</h1><img src = "/images/m_151103d7cb4d3faf4e1c2c5cb996febf_r.png">
+
+<h1 id="部署zookeeper集群"><a href="#部署zookeeper集群" class="headerlink" title="部署zookeeper集群"></a>部署zookeeper集群</h1><ul>
+<li>Zookeeper是Dubbo微服务集群的注册中心</li>
+<li>它的高可用机制和K8S的etcd集群一致</li>
+<li>由Java编写，所以需要jdk环境</li>
+</ul>
+<h2 id="集群规划"><a href="#集群规划" class="headerlink" title="集群规划"></a>集群规划</h2><table>
+<thead>
+<tr>
+<th align="left">主机名</th>
+<th align="left">角色</th>
+<th align="left">IP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">shkf6-241</td>
+<td align="left">k8s代理节点1,zk1,jdk</td>
+<td align="left">192.168.6.241</td>
+</tr>
+<tr>
+<td align="left">shkf6-242</td>
+<td align="left">k8s代理节点2,zk2,jdk</td>
+<td align="left">192.168.6.242</td>
+</tr>
+<tr>
+<td align="left">shkf6-243</td>
+<td align="left">k8s运算节点1,zk3,jdk</td>
+<td align="left">192.168.6.243</td>
+</tr>
+<tr>
+<td align="left">shkf6-244</td>
+<td align="left">k8s运算节点2,jenkins</td>
+<td align="left">192.168.6.244</td>
+</tr>
+<tr>
+<td align="left">shkf6-245</td>
+<td align="left">k8s运维节点（docker仓库）</td>
+<td align="left">192.168.6.245</td>
+</tr>
+</tbody></table>
+<h2 id="安装jdk1-8（3台zk角色主机）"><a href="#安装jdk1-8（3台zk角色主机）" class="headerlink" title="安装jdk1.8（3台zk角色主机）"></a>安装jdk1.8（3台zk角色主机）</h2><p><a href="https://www.oracle.com/technetwork/java/archive-139210.html" target="_blank" rel="noopener">JDK_ALL下载地址</a></p>
+<p><a href="http://down.sunrisenan.com/oracle/jdk-8u221-linux-x64.tar.gz" target="_blank" rel="noopener">jdk1.8下载</a></p>
+<p>在shkf6-241机器上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# mkdir /opt/src</span><br><span class="line">[root@shkf6-241 ~]# wget -O /opt/src/jdk-8u221-linux-x64.tar.gz http://down.sunrisenan.com/oracle/jdk-8u221-linux-x64.tar.gz</span><br><span class="line">[root@shkf6-241 ~]# ls -l /opt/src/  | grep jdk</span><br><span class="line">-rw-r--r-- 1 root root 195094741 Nov 28 10:44 jdk-8u221-linux-x64.tar.gz</span><br><span class="line">[root@shkf6-241 ~]# mkdir /usr/java</span><br><span class="line">[root@shkf6-241 ~]# tar xf /opt/src/jdk-8u221-linux-x64.tar.gz -C /usr/java</span><br><span class="line">[root@shkf6-241 ~]# ln -s /usr/java/jdk1.8.0_221 /usr/java/jdk</span><br><span class="line">[root@shkf6-241 ~]# vi /etc/profile</span><br><span class="line">[root@shkf6-241 ~]# tail -4 /etc/profile</span><br><span class="line"></span><br><span class="line">export JAVA_HOME=/usr/java/jdk</span><br><span class="line">export PATH=$JAVA_HOME/bin:$JAVA_HOME/bin:$PATH</span><br><span class="line">export CLASSPATH=$CLASSPATH:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar</span><br><span class="line">[root@shkf6-241 ~]# source /etc/profile</span><br><span class="line"></span><br><span class="line">[root@shkf6-241 ~]# java -version</span><br><span class="line">java version "1.8.0_221"</span><br><span class="line">Java(TM) SE Runtime Environment (build 1.8.0_221-b11)</span><br><span class="line">Java HotSpot(TM) 64-Bit Server VM (build 25.221-b11, mixed mode)</span><br></pre></td></tr></table></figure>
+
+<p>注意：这里以shkf6-241为例，分别在shkf6-242，shkf6-243上部署</p>
+<h2 id="安装zookeeper（3台zk角色主机）"><a href="#安装zookeeper（3台zk角色主机）" class="headerlink" title="安装zookeeper（3台zk角色主机）"></a>安装zookeeper（3台zk角色主机）</h2><p><a href="https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/" target="_blank" rel="noopener">zk下载</a></p>
+<p><a href="http://archive.apache.org/dist/zookeeper/" target="_blank" rel="noopener">zookeeper</a></p>
+<h3 id="解压配置"><a href="#解压配置" class="headerlink" title="解压配置"></a>解压配置</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# wget -O /opt/src/zookeeper-3.4.14.tar.gz https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.14/zookeeper-3.4.14.tar.gz</span><br><span class="line">[root@shkf6-241 ~]# tar xf /opt/src/zookeeper-3.4.14.tar.gz -C /opt/</span><br><span class="line">[root@shkf6-241 ~]# ln -s /opt/zookeeper-3.4.14 /opt/zookeeper</span><br><span class="line">[root@shkf6-241 ~]# mkdir -pv /data/zookeeper/data /data/zookeeper/logs</span><br><span class="line">[root@shkf6-241 ~]# vi /opt/zookeeper/conf/zoo.cfg</span><br><span class="line">[root@shkf6-241 ~]# cat /opt/zookeeper/conf/zoo.cfg</span><br><span class="line">tickTime=2000</span><br><span class="line">initLimit=10</span><br><span class="line">syncLimit=5</span><br><span class="line">dataDir=/data/zookeeper/data</span><br><span class="line">dataLogDir=/data/zookeeper/logs</span><br><span class="line">clientPort=2181</span><br><span class="line">server.1=zk1.od.com:2888:3888</span><br><span class="line">server.2=zk2.od.com:2888:3888</span><br><span class="line">server.3=zk3.od.com:2888:3888</span><br></pre></td></tr></table></figure>
+
+<p>注意：各节点zk配置相同</p>
+<h3 id="myid"><a href="#myid" class="headerlink" title="myid"></a>myid</h3><p>hdsh6-241.host.com上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# echo "1" &gt; /data/zookeeper/data/myid</span><br></pre></td></tr></table></figure>
+
+<p>hdsh6-242.host.com上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-242 ~]# echo "2" &gt; /data/zookeeper/data/myid</span><br></pre></td></tr></table></figure>
+
+<p>hdsh6-243.host.com上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# echo "3" &gt; /data/zookeeper/data/myid</span><br></pre></td></tr></table></figure>
+
+<h3 id="做dns解析"><a href="#做dns解析" class="headerlink" title="做dns解析"></a>做dns解析</h3><p>hdsh6-241.host.com上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# vi /var/named/od.com.zone </span><br><span class="line">[root@shkf6-241 ~]# cat /var/named/od.com.zone</span><br><span class="line"><span class="meta">$</span><span class="bash">ORIGIN od.com.</span></span><br><span class="line"><span class="meta">$</span><span class="bash">TTL 600    ; 10 minutes</span></span><br><span class="line">@           IN SOA    dns.od.com. dnsadmin.od.com. (</span><br><span class="line">                2019111209 ; serial</span><br><span class="line">                10800      ; refresh (3 hours)</span><br><span class="line">                900        ; retry (15 minutes)</span><br><span class="line">                604800     ; expire (1 week)</span><br><span class="line">                86400      ; minimum (1 day)</span><br><span class="line">                )</span><br><span class="line">                NS   dns.od.com.</span><br><span class="line"><span class="meta">$</span><span class="bash">TTL 60    ; 1 minute</span></span><br><span class="line">dns                A    192.168.6.241</span><br><span class="line">harbor             A    192.168.6.245</span><br><span class="line">k8s-yaml           A    192.168.6.245</span><br><span class="line">traefik            A    192.168.6.66</span><br><span class="line">dashboard          A    192.168.6.66</span><br><span class="line">zk1                A    192.168.6.241</span><br><span class="line">zk2                A    192.168.6.242</span><br><span class="line">zk3                A    192.168.6.243</span><br><span class="line"></span><br><span class="line">[root@shkf6-241 ~]# systemctl restart named.service</span><br><span class="line"></span><br><span class="line">[root@shkf6-241 ~]# dig -t A zk1.od.com @192.168.6.241 +short</span><br><span class="line">192.168.6.241</span><br></pre></td></tr></table></figure>
+
+<h3 id="依次启动"><a href="#依次启动" class="headerlink" title="依次启动"></a>依次启动</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# /opt/zookeeper/bin/zkServer.sh start</span><br><span class="line"></span><br><span class="line">[root@shkf6-242 ~]# /opt/zookeeper/bin/zkServer.sh start</span><br><span class="line"></span><br><span class="line">[root@shkf6-243 ~]# /opt/zookeeper/bin/zkServer.sh start</span><br></pre></td></tr></table></figure>
+
+<h3 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h3><ul>
+<li>查看当前角色</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# /opt/zookeeper/bin/zkServer.sh status</span><br><span class="line">ZooKeeper JMX enabled by default</span><br><span class="line">Using config: /opt/zookeeper/bin/../conf/zoo.cfg</span><br><span class="line">Mode: follower</span><br><span class="line"></span><br><span class="line">[root@shkf6-242 ~]# /opt/zookeeper/bin/zkServer.sh status</span><br><span class="line">ZooKeeper JMX enabled by default</span><br><span class="line">Using config: /opt/zookeeper/bin/../conf/zoo.cfg</span><br><span class="line">Mode: leader</span><br><span class="line"></span><br><span class="line">[root@shkf6-243 ~]# /opt/zookeeper/bin/zkServer.sh status</span><br><span class="line">ZooKeeper JMX enabled by default</span><br><span class="line">Using config: /opt/zookeeper/bin/../conf/zoo.cfg</span><br><span class="line">Mode: follower</span><br></pre></td></tr></table></figure>
+
+<h1 id="部署jenkins"><a href="#部署jenkins" class="headerlink" title="部署jenkins"></a>部署jenkins</h1><h2 id="准备镜像"><a href="#准备镜像" class="headerlink" title="准备镜像"></a>准备镜像</h2><p><a href="https://jenkins.io/download/" target="_blank" rel="noopener">jenkins官网</a></p>
+<p><a href="https://hub.docker.com/_/jenkins" target="_blank" rel="noopener">jenkins镜像</a></p>
+<p>在运维主机下载官网上的稳定版（这里下载2.190.3）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# docker pull jenkins/jenkins:2.190.3</span><br><span class="line">[root@shkf6-245 ~]# docker images | grep jenkins</span><br><span class="line">jenkins/jenkins                                   2.190.3                    22b8b9a84dbe        7 days ago          568MB</span><br><span class="line">[root@shkf6-245 ~]# docker tag 22b8b9a84dbe harbor.od.com/public/jenkins:v2.190.3</span><br><span class="line">[root@shkf6-245 ~]# docker pull !$</span><br><span class="line">docker push harbor.od.com/public/jenkins:v2.190.3</span><br></pre></td></tr></table></figure>
+
+<h2 id="自定义Dockerfile"><a href="#自定义Dockerfile" class="headerlink" title="自定义Dockerfile"></a>自定义Dockerfile</h2><p>在运维主机shkf6-245.host.com上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# mkdir -p  /data/dockerfile/jenkins/</span><br><span class="line">[root@shkf6-245 ~]# vi /data/dockerfile/jenkins/Dockerfile</span><br><span class="line">[root@shkf6-245 ~]# cat /data/dockerfile/jenkins/Dockerfile</span><br><span class="line">FROM harbor.od.com/public/jenkins:v2.190.3</span><br><span class="line">USER root</span><br><span class="line">RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &amp;&amp;\ </span><br><span class="line">    echo 'Asia/Shanghai' &gt;/etc/timezone</span><br><span class="line">ADD id_rsa /root/.ssh/id_rsa</span><br><span class="line">ADD config.json /root/.docker/config.json</span><br><span class="line">ADD get-docker.sh /get-docker.sh</span><br><span class="line">RUN echo "    StrictHostKeyChecking no" &gt;&gt; /etc/ssh/ssh_config &amp;&amp;\</span><br><span class="line">    /get-docker.sh</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>get-docker加速版</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">FROM harbor.od.com/public/jenkins:v2.190.3</span><br><span class="line">USER root</span><br><span class="line">RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &amp;&amp;\ </span><br><span class="line">   echo 'Asia/Shanghai' &gt;/etc/timezone</span><br><span class="line">ADD id_rsa /root/.ssh/id_rsa</span><br><span class="line">ADD config.json /root/.docker/config.json</span><br><span class="line">ADD get-docker.sh /get-docker.sh</span><br><span class="line">RUN echo "    StrictHostKeyChecking no" &gt;&gt; /etc/ssh/ssh_config &amp;&amp;\</span><br><span class="line">   /get-docker.sh --mirror Aliyun   # 阿里云加速</span><br></pre></td></tr></table></figure>
+
+<p>这个Dockerfile里我们主要做了以下几件事</p>
+<ul>
+<li>设置容器用户为root</li>
+<li>设置容器内的时区</li>
+<li>将ssh私钥加入（使用git拉取代码时要用到，配置的公钥应配置在gitlab中）</li>
+<li>加入了登录自建harbor仓库的config文件</li>
+<li>修改了ssh客户端的配置</li>
+<li>安装一个docker的客户端</li>
+</ul>
+<p>√ 1.生成ssh秘钥：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# ssh-keygen -t rsa -b 2048 -C "yanzhao.li@qq.com" -N "" -f /root/.ssh/id_rsa</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 ~]# cat /root/.ssh/id_rsa.pub   #可以看到自己设置的邮箱</span><br><span class="line">ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDzRHGRCF3F/IaI5EMwbZJ5V0AFJDogQVUeWEGLiqskyOVhoVAM/mPRXzNXPz/CkMKOkclCt/gPUWYgowVqFFnBobacVCmTATSdp0CDYhEjB54LAeTuOrbXb4uB957LlLRdiM3gsLtmjYxbs5dNRCGHZ4dXJ729nwAUofMkH+duVuN4OZ2GqNBz4ZCStgTOsM/vcyUex/N/mfET+ZLJO6+gLN0WzhjjmrynKueDXRsFSC+qHVIEi1WWHpGkr6sXX5FXIoviBQk8wJiFLvfEtjILDRMKxIMi3/uZeDrHKP4/9wGfu6OgLFKXWYsQByKnzIp3LsRZoI3EjGy6nx/VgnGZ yanzhao.li@qq.com</span><br></pre></td></tr></table></figure>
+
+<p>√ 2.拷贝文件</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# cp /root/.ssh/id_rsa /data/dockerfile/jenkins/</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 ~]# cp /root/.docker/config.json /data/dockerfile/jenkins/</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 ~]# cd /data/dockerfile/jenkins/ &amp;&amp; curl -fsSL get.docker.com -o get-docker.sh &amp;&amp; chmod +x get-docker.sh</span><br></pre></td></tr></table></figure>
+
+<p>√ 3.查看docker harbor config</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jenkins]#cat /root/.docker/config.json</span><br><span class="line">&#123;</span><br><span class="line">    "auths": &#123;</span><br><span class="line">        "harbor.od.com": &#123;</span><br><span class="line">            "auth": "YWRtaW46SGFyYm9yMTIzNDU="</span><br><span class="line">        &#125;,</span><br><span class="line">        "https://index.docker.io/v1/": &#123;</span><br><span class="line">            "auth": "c3VucmlzZW5hbjpseXo1MjA="</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    "HttpHeaders": &#123;</span><br><span class="line">        "User-Agent": "Docker-Client/19.03.5 (linux)"</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="制作自定义镜像"><a href="#制作自定义镜像" class="headerlink" title="制作自定义镜像"></a>制作自定义镜像</h2><p>/data/dockerfile/jenkins</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jenkins]# ls -l</span><br><span class="line">total 28</span><br><span class="line">-rw------- 1 root root   229 Nov 28 13:50 config.json</span><br><span class="line">-rw-r--r-- 1 root root   394 Nov 28 13:15 Dockerfile</span><br><span class="line">-rwxr-xr-x 1 root root 13216 Nov 28 13:53 get-docker.sh</span><br><span class="line">-rw------- 1 root root  1679 Nov 28 13:40 id_rsa</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[root@shkf6-245 jenkins]# docker build . -t harbor.od.com/infra/jenkins:v2.190.3</span><br><span class="line">Sending build context to Docker daemon  19.46kB</span><br><span class="line">Step 1/7 : FROM harbor.od.com/public/jenkins:v2.190.3</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> 22b8b9a84dbe</span></span><br><span class="line">Step 2/7 : USER root</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> Running <span class="keyword">in</span> 6347ef23acfd</span></span><br><span class="line">Removing intermediate container 6347ef23acfd</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> ff18352d230e</span></span><br><span class="line">Step 3/7 : RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &amp;&amp;    echo 'Asia/Shanghai' &gt;/etc/timezone</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> Running <span class="keyword">in</span> 970da85d013e</span></span><br><span class="line">Removing intermediate container 970da85d013e</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> ca63098fe359</span></span><br><span class="line">Step 4/7 : ADD id_rsa /root/.ssh/id_rsa</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> 0274b5facac2</span></span><br><span class="line">Step 5/7 : ADD config.json /root/.docker/config.json</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> 75d0e57592c3</span></span><br><span class="line">Step 6/7 : ADD get-docker.sh /get-docker.sh</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> a0ec7cf884a4</span></span><br><span class="line">Step 7/7 : RUN echo "    StrictHostKeyChecking no" &gt;&gt; /etc/ssh/ssh_config &amp;&amp;    /get-docker.sh</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> Running <span class="keyword">in</span> cd18e5417de5</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> Executing docker install script, commit: f45d7c11389849ff46a6b4d94e0dd1ffebca32c1</span></span><br><span class="line">+ sh -c apt-get update -qq &gt;/dev/null</span><br><span class="line">+ sh -c DEBIAN_FRONTEND=noninteractive apt-get install -y -qq apt-transport-https ca-certificates curl &gt;/dev/null</span><br><span class="line">debconf: delaying package configuration, since apt-utils is not installed</span><br><span class="line">+ sh -c curl -fsSL "https://download.docker.com/linux/debian/gpg" | apt-key add -qq - &gt;/dev/null</span><br><span class="line">Warning: apt-key output should not be parsed (stdout is not a terminal)</span><br><span class="line">+ sh -c echo "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" &gt; /etc/apt/sources.list.d/docker.list</span><br><span class="line">+ sh -c apt-get update -qq &gt;/dev/null</span><br><span class="line">+ [ -n  ]</span><br><span class="line">+ sh -c apt-get install -y -qq --no-install-recommends docker-ce &gt;/dev/null</span><br><span class="line">debconf: delaying package configuration, since apt-utils is not installed</span><br><span class="line">If you would like to use Docker as a non-root user, you should now consider</span><br><span class="line">adding your user to the "docker" group with something like:</span><br><span class="line"></span><br><span class="line">  sudo usermod -aG docker your-user</span><br><span class="line"></span><br><span class="line">Remember that you will have to log out and back in for this to take effect!</span><br><span class="line"></span><br><span class="line">WARNING: Adding a user to the "docker" group will grant the ability to run</span><br><span class="line">         containers which can be used to obtain root privileges on the</span><br><span class="line">         docker host.</span><br><span class="line">         Refer to https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface</span><br><span class="line">         for more information.</span><br><span class="line">Removing intermediate container cd18e5417de5</span><br><span class="line"><span class="meta"> ---&gt;</span><span class="bash"> 7170e12fccfe</span></span><br><span class="line">Successfully built 7170e12fccfe</span><br><span class="line">Successfully tagged harbor.od.com/infra/jenkins:v2.190.3</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建infra仓库"><a href="#创建infra仓库" class="headerlink" title="创建infra仓库"></a>创建infra仓库</h2><p>在Harbor页面，创建infra仓库，注意：私有仓库</p>
+<img src = "/images/m_fa310a840919e2af2f8bfbf58e9203ab_r.png">
+
+<h2 id="推送镜像"><a href="#推送镜像" class="headerlink" title="推送镜像"></a>推送镜像</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jenkins]# docker push harbor.od.com/infra/jenkins:v2.190.3</span><br></pre></td></tr></table></figure>
+
+<p>√ gitee.com 添加私钥，测试jenkins镜像：</p>
+<img src = "/images/m_8c8788f678c45b04375937a4c13290d5_r.png">
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jenkins]# docker run --rm harbor.od.com/infra/jenkins:v2.190.3 ssh -i /root/.ssh/id_rsa  -T git@gitee.com</span><br><span class="line">Warning: Permanently added 'gitee.com,212.64.62.174' (ECDSA) to the list of known hosts.</span><br><span class="line">Hi Sunrise! You've successfully authenticated, but GITEE.COM does not provide shell access.</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建kubernetes命名空间，私有仓库鉴权"><a href="#创建kubernetes命名空间，私有仓库鉴权" class="headerlink" title="创建kubernetes命名空间，私有仓库鉴权"></a>创建kubernetes命名空间，私有仓库鉴权</h2><p>在任意运算节点上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl create ns infra</span><br><span class="line">namespace/infra created</span><br><span class="line"></span><br><span class="line">[root@shkf6-243 ~]# kubectl create secret docker-registry harbor --docker-server=harbor.od.com --docker-username=admin --docker-password=Harbor12345 -n infra</span><br><span class="line">secret/harbor created</span><br></pre></td></tr></table></figure>
+
+<h2 id="准备共享存储"><a href="#准备共享存储" class="headerlink" title="准备共享存储"></a>准备共享存储</h2><p>运维主机，以及所有运算节点上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# yum install nfs-utils -y</span><br><span class="line"></span><br><span class="line">[root@shkf6-244 ~]# yum install nfs-utils -y</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 ~]# yum install nfs-utils -y</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>配置NFS服务</li>
+</ul>
+<p>运维主机shkf6-245上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# cat /etc/exports</span><br><span class="line">/data/nfs-volume 192.168.6.0/24(rw,no_root_squash)</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>启动NFS服务</li>
+</ul>
+<p>运维主机shkf6-245上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# mkdir -p  /data/nfs-volume/jenkins_home</span><br><span class="line">[root@shkf6-245 ~]# systemctl start nfs</span><br><span class="line">[root@shkf6-245 ~]# systemctl enable nfs</span><br></pre></td></tr></table></figure>
+
+<h2 id="准备资源配置清单"><a href="#准备资源配置清单" class="headerlink" title="准备资源配置清单"></a>准备资源配置清单</h2><p>运维主机shkf6-245上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# mkdir /data/k8s-yaml/jenkins</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>Deployment</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/jenkins/dp.yaml </span><br><span class="line">kind: Deployment</span><br><span class="line">apiVersion: extensions/v1beta1</span><br><span class="line">metadata:</span><br><span class="line">  name: jenkins</span><br><span class="line">  namespace: infra</span><br><span class="line">  labels: </span><br><span class="line">    name: jenkins</span><br><span class="line">spec:</span><br><span class="line">  replicas: 1</span><br><span class="line">  selector:</span><br><span class="line">    matchLabels: </span><br><span class="line">      name: jenkins</span><br><span class="line">  template:</span><br><span class="line">    metadata:</span><br><span class="line">      labels: </span><br><span class="line">        app: jenkins </span><br><span class="line">        name: jenkins</span><br><span class="line">    spec:</span><br><span class="line">      volumes:</span><br><span class="line">      - name: data</span><br><span class="line">        nfs: </span><br><span class="line">          server: shkf6-245</span><br><span class="line">          path: /data/nfs-volume/jenkins_home</span><br><span class="line">      - name: docker</span><br><span class="line">        hostPath: </span><br><span class="line">          path: /run/docker.sock</span><br><span class="line">          type: ''</span><br><span class="line">      containers:</span><br><span class="line">      - name: jenkins</span><br><span class="line">        image: harbor.od.com/infra/jenkins:v2.190.3</span><br><span class="line">        imagePullPolicy: IfNotPresent</span><br><span class="line">        ports:</span><br><span class="line">        - containerPort: 8080</span><br><span class="line">          protocol: TCP</span><br><span class="line">        env:</span><br><span class="line">        - name: JAVA_OPTS</span><br><span class="line">          value: -Xmx512m -Xms512m</span><br><span class="line">        volumeMounts:</span><br><span class="line">        - name: data</span><br><span class="line">          mountPath: /var/jenkins_home</span><br><span class="line">        - name: docker</span><br><span class="line">          mountPath: /run/docker.sock</span><br><span class="line">      imagePullSecrets:</span><br><span class="line">      - name: harbor</span><br><span class="line">      securityContext: </span><br><span class="line">        runAsUser: 0</span><br><span class="line">  strategy:</span><br><span class="line">    type: RollingUpdate</span><br><span class="line">    rollingUpdate: </span><br><span class="line">      maxUnavailable: 1</span><br><span class="line">      maxSurge: 1</span><br><span class="line">  revisionHistoryLimit: 7</span><br><span class="line">  progressDeadlineSeconds: 600</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>service</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/jenkins/svc.yaml </span><br><span class="line">kind: Service</span><br><span class="line">apiVersion: v1</span><br><span class="line">metadata: </span><br><span class="line">  name: jenkins</span><br><span class="line">  namespace: infra</span><br><span class="line">spec:</span><br><span class="line">  ports:</span><br><span class="line">  - protocol: TCP</span><br><span class="line">    port: 80</span><br><span class="line">    targetPort: 8080</span><br><span class="line">  selector:</span><br><span class="line">    app: jenkins</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>ingress</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/jenkins/ingress.yaml </span><br><span class="line">kind: Ingress</span><br><span class="line">apiVersion: extensions/v1beta1</span><br><span class="line">metadata: </span><br><span class="line">  name: jenkins</span><br><span class="line">  namespace: infra</span><br><span class="line">spec:</span><br><span class="line">  rules:</span><br><span class="line">  - host: jenkins.od.com</span><br><span class="line">    http:</span><br><span class="line">      paths:</span><br><span class="line">      - path: /</span><br><span class="line">        backend: </span><br><span class="line">          serviceName: jenkins</span><br><span class="line">          servicePort: 80</span><br></pre></td></tr></table></figure>
+
+<h2 id="应用资源配置清单"><a href="#应用资源配置清单" class="headerlink" title="应用资源配置清单"></a>应用资源配置清单</h2><p>在任意运算节点上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/jenkins/dp.yaml</span><br><span class="line"></span><br><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/jenkins/svc.yaml</span><br><span class="line"></span><br><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/jenkins/ingress.yaml</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>检查</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/jenkins/dp.yaml</span><br><span class="line">deployment.extensions/jenkins created</span><br><span class="line">[root@shkf6-243 ~]# kubectl get all -n infra</span><br><span class="line">NAME                           READY   STATUS    RESTARTS   AGE</span><br><span class="line">pod/jenkins-74f7d66687-gjgth   1/1     Running   0          56m</span><br><span class="line"></span><br><span class="line">NAME              TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)   AGE</span><br><span class="line">service/jenkins   ClusterIP   10.96.2.239   &lt;none&gt;        80/TCP    63m</span><br><span class="line"></span><br><span class="line">NAME                      READY   UP-TO-DATE   AVAILABLE   AGE</span><br><span class="line">deployment.apps/jenkins   1/1     1            1           56m</span><br><span class="line"></span><br><span class="line">NAME                                 DESIRED   CURRENT   READY   AGE</span><br><span class="line">replicaset.apps/jenkins-74f7d66687   1         1         1       56m</span><br></pre></td></tr></table></figure>
+
+<h2 id="解析域名"><a href="#解析域名" class="headerlink" title="解析域名"></a>解析域名</h2><p>在shkf6-241上：</p>
+<ul>
+<li>增加配置</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# cat /var/named/od.com.zone </span><br><span class="line"><span class="meta">$</span><span class="bash">ORIGIN od.com.</span></span><br><span class="line"><span class="meta">$</span><span class="bash">TTL 600    ; 10 minutes</span></span><br><span class="line">@           IN SOA    dns.od.com. dnsadmin.od.com. (</span><br><span class="line">                2019111210 ; serial    # 滚动加一</span><br><span class="line">                10800      ; refresh (3 hours)</span><br><span class="line">                900        ; retry (15 minutes)</span><br><span class="line">                604800     ; expire (1 week)</span><br><span class="line">                86400      ; minimum (1 day)</span><br><span class="line">                )</span><br><span class="line">                NS   dns.od.com.</span><br><span class="line"><span class="meta">$</span><span class="bash">TTL 60    ; 1 minute</span></span><br><span class="line">dns                A    192.168.6.241</span><br><span class="line">harbor             A    192.168.6.245</span><br><span class="line">k8s-yaml           A    192.168.6.245</span><br><span class="line">traefik            A    192.168.6.66</span><br><span class="line">dashboard          A    192.168.6.66</span><br><span class="line">zk1                A    192.168.6.241</span><br><span class="line">zk2                A    192.168.6.242</span><br><span class="line">zk3                A    192.168.6.243</span><br><span class="line">jenkins            A    192.168.6.66       # 添加解析</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>重启，检查</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# systemctl restart named</span><br><span class="line">[root@shkf6-241 ~]# dig -t A jenkins.od.com @192.168.6.241 +short</span><br><span class="line">192.168.6.66</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置jenkins加速"><a href="#配置jenkins加速" class="headerlink" title="配置jenkins加速"></a>配置jenkins加速</h2><ul>
+<li><p>jenkins插件清华大学镜像地址</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# wget -O /data/nfs-volume/jenkins_home/updates/default.json https://mirrors.tuna.tsinghua.edu.cn/jenkins/updates/update-center.json</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>其他方法</p>
+</li>
+</ul>
+<p>操作步骤</p>
+<p>以上的配置Json其实在Jenkins的工作目录中</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">cd</span> &#123;你的Jenkins工作目录&#125;/updates  <span class="comment">#进入更新配置位置</span></span></span><br></pre></td></tr></table></figure>
+
+<p>第一种方式：使用vim</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim default.json   <span class="comment">#这个Json文件与上边的配置文件是相同的</span></span></span><br><span class="line"></span><br><span class="line">这里wiki和github的文档不用改，我们就可以成功修改这个配置</span><br><span class="line"></span><br><span class="line">使用vim的命令，如下，替换所有插件下载的url</span><br><span class="line"></span><br><span class="line">:1,$s/http:\/\/updates.jenkins-ci.org\/download/https:\/\/mirrors.tuna.tsinghua.edu.cn\/jenkins/g</span><br><span class="line"></span><br><span class="line">替换连接测试url</span><br><span class="line"></span><br><span class="line">:1,$s/http:\/\/www.google.com/https:\/\/www.baidu.com/g</span><br><span class="line"></span><br><span class="line">    进入vim先输入：然后再粘贴上边的：后边的命令，注意不要写两个冒号！</span><br><span class="line"></span><br><span class="line">修改完成保存退出:wq</span><br></pre></td></tr></table></figure>
+
+<p>第二种方式：使用sed</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> sed -i <span class="string">'s/http:\/\/updates.jenkins-ci.org\/download/https:\/\/mirrors.tuna.tsinghua.edu.cn\/jenkins/g'</span> default.json &amp;&amp; sed -i <span class="string">'s/http:\/\/www.google.com/https:\/\/www.baidu.com/g'</span> default.json</span></span><br><span class="line"></span><br><span class="line">    这是直接修改的配置文件，如果前边Jenkins用sudo启动的话，那么这里的两个sed前均需要加上sudo</span><br></pre></td></tr></table></figure>
+
+<p><a href="https://www.cnblogs.com/hellxz/p/jenkins_install_plugins_faster.html" target="_blank" rel="noopener">重启Jenkins，安装插件试试，简直超速</a>！！</p>
+<h2 id="浏览器访问"><a href="#浏览器访问" class="headerlink" title="浏览器访问"></a>浏览器访问</h2><p>浏览器访问 <a href="http://jenkins.od.com/" target="_blank" rel="noopener">http://jenkins.od.com/</a></p>
+<img src = "/images/m_9b05da934bea1cc9b12790e4f06ba227_r.png">
+
+<h2 id="页面配置jenkins"><a href="#页面配置jenkins" class="headerlink" title="页面配置jenkins"></a>页面配置jenkins</h2><h3 id="初始化密码"><a href="#初始化密码" class="headerlink" title="初始化密码"></a>初始化密码</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl get pods -n infra</span><br><span class="line">NAME                       READY   STATUS    RESTARTS   AGE</span><br><span class="line">jenkins-74f7d66687-gjgth   1/1     Running   0          68m</span><br><span class="line">[root@shkf6-243 ~]# kubectl exec jenkins-74f7d66687-gjgth /bin/cat /var/jenkins_home/secrets/initialAdminPassword -n infra </span><br><span class="line">59be7fd64b2b4c18a3cd927e0123f609</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[root@shkf6-245 ~]# cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword </span><br><span class="line">59be7fd64b2b4c18a3cd927e0123f609</span><br></pre></td></tr></table></figure>
+
+<img src = "/images/m_4079ad580f9908779fad463a361da95e_r.png">
+
+<h3 id="跳过安装插件"><a href="#跳过安装插件" class="headerlink" title="跳过安装插件"></a>跳过安装插件</h3><img src = "/images/m_142d1541420384969ad4a2bf66cc5c8a_r.png">
+
+<img src = "/images/m_a33ab46e65c3d187b7443cd43a4cb8d6_r.png">
+
+<h3 id="更改admin密码"><a href="#更改admin密码" class="headerlink" title="更改admin密码"></a>更改admin密码</h3><img src = "/images/m_ad3ee426b7710d427a4c2bfc652e4212_r.png">
+
+<img src = "/images/m_fb066a63442d974943d2dc9d30dc0e6e_r.png">
+
+<h3 id="使用admin登录"><a href="#使用admin登录" class="headerlink" title="使用admin登录"></a>使用admin登录</h3><img src = "/images/m_a373a959e064dce76be35505b4c88af1_r.png">
+
+<h3 id="调整安全选项"><a href="#调整安全选项" class="headerlink" title="调整安全选项"></a>调整安全选项</h3><img src = "/images/m_b254e056cf8d6ccd78e8b862a36fcd97_r.png">
+
+<img src = "/images/m_8cbb70f4591522b61501ad019b544c53_r.png">
+
+<img src = "/images/m_dfbaa5b108f88df82246abf817183507_r.png">
+
+<h3 id="安装Blue-Ocean插件"><a href="#安装Blue-Ocean插件" class="headerlink" title="安装Blue Ocean插件"></a>安装Blue Ocean插件</h3><img src = "/images/m_0c43496501b1ffbc81e0de1225829eb0_r.png">
+
+<img src = "/images/m_50c51fccc496c23857fc0d00efbe49b4_r.png">
+
+<img src = "/images/m_111097df8cd6513890005c24dee704b6_r.png">
+
+<blockquote>
+<p>我们勾上这个允许匿名登录主要也是配合最后spinnaker</p>
+</blockquote>
+<p>如果不允许匿名访问可进行如下操作：</p>
+<img src = "/images/m_6dc2fe58f288ecb137322e5da9f854c6_r.png">
+
+<img src = "/images/m_8c4e6c8b6d1c0155b7859960e5dfc69c_r.png">
+
+<h2 id="配置New-job"><a href="#配置New-job" class="headerlink" title="配置New job"></a>配置New job</h2><ul>
+<li>create new jobs</li>
+<li>Enter anitem name</li>
+</ul>
+<blockquote>
+<p>dubbo-demo</p>
+</blockquote>
+<ul>
+<li>Pipeline –&gt; ok</li>
+<li>Discard old builds</li>
+</ul>
+<blockquote>
+<p>Days to keep builds：3<br>Max # of builds to keep:30</p>
+</blockquote>
+<ul>
+<li>This project is parameterized</li>
+</ul>
+<p>1.Add Parameter –&gt; String Parameter</p>
+<blockquote>
+<p>Name：app_name<br>Default Value:<br>Description：project name，e.g：dubbo-demo-service</p>
+</blockquote>
+<p>2.Add Parameter -&gt; String Parameter</p>
+<blockquote>
+<p>Name : image_name<br>Default Value :<br>Description : project docker image name. e.g: app/dubbo-demo-service</p>
+</blockquote>
+<p>3.Add Parameter -&gt; String Parameter</p>
+<blockquote>
+<p>Name : git_repo<br>Default Value :<br>Description : project git repository. e.g: <a href="https://gitee.com/stanleywang/dubbo-demo-service.git" target="_blank" rel="noopener">https://gitee.com/stanleywang/dubbo-demo-service.git</a></p>
+</blockquote>
+<p>4.Add Parameter -&gt; String Parameter</p>
+<blockquote>
+<p>Name : git_ver<br>Default Value :<br>Description : git commit id of the project.</p>
+</blockquote>
+<p>5.Add Parameter -&gt; String Parameter</p>
+<blockquote>
+<p>Name : add_tag<br>Default Value :<br>Description : project docker image tag, date_timestamp recommended. e.g: 190117_1920</p>
+</blockquote>
+<p>6.Add Parameter -&gt; String Parameter</p>
+<blockquote>
+<p>Name : mvn_dir<br>Default Value : ./<br>Description : project maven directory. e.g: ./</p>
+</blockquote>
+<p>7.Add Parameter -&gt; String Parameter</p>
+<blockquote>
+<p>Name : target_dir<br>Default Value : ./target<br>Description : the relative path of target file such as .jar or .war package. e.g: ./dubbo-server/target</p>
+</blockquote>
+<p>8.Add Parameter -&gt; String Parameter</p>
+<blockquote>
+<p>Name : mvn_cmd<br>Default Value : mvn clean package -Dmaven.test.skip=true<br>Description : maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true</p>
+</blockquote>
+<p>9.Add Parameter -&gt; Choice Parameter</p>
+<blockquote>
+<p>Name : base_image<br>Default Value :</p>
+<ul>
+<li>base/jre7:7u80</li>
+<li>base/jre8:8u112<br>Description : project base image list in harbor.od.com.</li>
+</ul>
+</blockquote>
+<p>10.Add Parameter -&gt; Choice Parameter</p>
+<blockquote>
+<p>Name : maven<br>Default Value :</p>
+<ul>
+<li>3.6.0-8u181</li>
+<li>3.2.5-6u025</li>
+<li>2.2.1-6u025<br>Description : different maven edition.</li>
+</ul>
+</blockquote>
+<h2 id="Pipeline-Script"><a href="#Pipeline-Script" class="headerlink" title="Pipeline Script"></a>Pipeline Script</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">pipeline &#123;</span><br><span class="line">  agent any </span><br><span class="line">    stages &#123;</span><br><span class="line">      stage('pull') &#123; //get project code from repo </span><br><span class="line">        steps &#123;</span><br><span class="line">          sh "git clone $&#123;params.git_repo&#125; $&#123;params.app_name&#125;/$&#123;env.BUILD_NUMBER&#125; &amp;&amp; cd $&#123;params.app_name&#125;/$&#123;env.BUILD_NUMBER&#125; &amp;&amp; git checkout $&#123;params.git_ver&#125;"</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      stage('build') &#123; //exec mvn cmd</span><br><span class="line">        steps &#123;</span><br><span class="line">          sh "cd $&#123;params.app_name&#125;/$&#123;env.BUILD_NUMBER&#125;  &amp;&amp; /var/jenkins_home/maven-$&#123;params.maven&#125;/bin/$&#123;params.mvn_cmd&#125;"</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      stage('package') &#123; //move jar file into project_dir</span><br><span class="line">        steps &#123;</span><br><span class="line">          sh "cd $&#123;params.app_name&#125;/$&#123;env.BUILD_NUMBER&#125; &amp;&amp; cd $&#123;params.target_dir&#125; &amp;&amp; mkdir project_dir &amp;&amp; mv *.jar ./project_dir"</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      stage('image') &#123; //build image and push to registry</span><br><span class="line">        steps &#123;</span><br><span class="line">          writeFile file: "$&#123;params.app_name&#125;/$&#123;env.BUILD_NUMBER&#125;/Dockerfile", text: """FROM harbor.od.com/$&#123;params.base_image&#125;</span><br><span class="line">ADD $&#123;params.target_dir&#125;/project_dir /opt/project_dir"""</span><br><span class="line">          sh "cd  $&#123;params.app_name&#125;/$&#123;env.BUILD_NUMBER&#125; &amp;&amp; docker build -t harbor.od.com/$&#123;params.image_name&#125;:$&#123;params.git_ver&#125;_$&#123;params.add_tag&#125; . &amp;&amp; docker push harbor.od.com/$&#123;params.image_name&#125;:$&#123;params.git_ver&#125;_$&#123;params.add_tag&#125;"</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="最后的准备工作"><a href="#最后的准备工作" class="headerlink" title="最后的准备工作"></a>最后的准备工作</h1><h2 id="检查jenkins容器里的docker客户端"><a href="#检查jenkins容器里的docker客户端" class="headerlink" title="检查jenkins容器里的docker客户端"></a>检查jenkins容器里的docker客户端</h2><p>进入jenkins的docker容器里，检查docker客户端是否可用。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl get pods -n infra </span><br><span class="line">NAME                       READY   STATUS    RESTARTS   AGE</span><br><span class="line">jenkins-74f7d66687-6hdr7   1/1     Running   0          4d22h</span><br><span class="line">[root@shkf6-243 ~]# kubectl exec -it jenkins-74f7d66687-6hdr7 /bin/sh -n infra </span><br><span class="line"><span class="meta">#</span><span class="bash"> <span class="built_in">exit</span></span></span><br><span class="line">[root@shkf6-243 ~]# kubectl exec -it jenkins-74f7d66687-6hdr7 bash -n infra </span><br><span class="line">root@jenkins-74f7d66687-6hdr7:/# docker ps -a</span><br><span class="line">CONTAINER ID        IMAGE                               COMMAND                  CREATED             STATUS              PORTS                NAMES</span><br><span class="line">96cc0389be29        7170e12fccfe                        "/sbin/tini -- /usr/…"   4 days ago          Up 4 days                                k8s_jenkins_jenkins-74f7d66687-6hdr7_infra_09e864de-341a-4a7d-a773-3803e19f428e_0</span><br><span class="line">3bb2b7530c2c        harbor.od.com/public/pause:latest   "/pause"                 4 days ago          Up 4 days                                k8s_POD_jenkins-74f7d66687-6hdr7_infra_09e864de-341a-4a7d-a773-3803e19f428e_0</span><br><span class="line">95c0c0485530        0c60bcf89900                        "/dashboard --insecu…"   5 days ago          Up 5 days                                k8s_kubernetes-dashboard_kubernetes-dashboard-5dbdd9bdd7-dtm98_kube-system_9a0475f5-2f02-4fac-bab1-ae295d4808c2_0</span><br><span class="line">1d659b7beb93        harbor.od.com/public/pause:latest   "/pause"                 5 days ago          Up 5 days                                k8s_POD_kubernetes-dashboard-5dbdd9bdd7-dtm98_kube-system_9a0475f5-2f02-4fac-bab1-ae295d4808c2_0</span><br><span class="line">598726a6347f        add5fac61ae5                        "/entrypoint.sh --ap…"   5 days ago          Up 5 days                                k8s_traefik-ingress_traefik-ingress-whtw9_kube-system_6ac78a23-81e9-48d0-a424-df2012e0ae2e_0</span><br><span class="line">4d04878ff060        harbor.od.com/public/pause:latest   "/pause"                 5 days ago          Up 5 days           0.0.0.0:81-&gt;80/tcp   k8s_POD_traefik-ingress-whtw9_kube-system_6ac78a23-81e9-48d0-a424-df2012e0ae2e_0</span><br><span class="line">root@jenkins-74f7d66687-6hdr7:/#</span><br></pre></td></tr></table></figure>
+
+<h2 id="检查jenkins容器里的SSH-key"><a href="#检查jenkins容器里的SSH-key" class="headerlink" title="检查jenkins容器里的SSH key"></a>检查jenkins容器里的SSH key</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">root@jenkins-74f7d66687-6hdr7:/# ssh -i /root/.ssh/id_rsa -T git@gitee.com</span><br><span class="line">Warning: Permanently added 'gitee.com,212.64.62.174' (ECDSA) to the list of known hosts.</span><br><span class="line">Hi StanleyWang (DeployKey)! You've successfully authenticated, but GITEE.COM does not provide shell access.</span><br><span class="line">Note: Perhaps the current use is DeployKey.</span><br><span class="line">Note: DeployKey only supports pull/fetch operations</span><br></pre></td></tr></table></figure>
+
+<h2 id="部署maven软件"><a href="#部署maven软件" class="headerlink" title="部署maven软件"></a>部署maven软件</h2><p>maven官方下载地址：</p>
+<p><a href="https://archive.apache.org/dist/maven/maven-3/" target="_blank" rel="noopener">maven3</a><br><a href="https://archive.apache.org/dist/maven/maven-2/" target="_blank" rel="noopener">maven2</a><br><a href="https://archive.apache.org/dist/maven/maven-1/" target="_blank" rel="noopener">maven1</a></p>
+<p>在运维主机shkf6-245.host.com上二进制部署，这里部署maven-3.6.1版</p>
+<p>/opt/src</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 src]# wget https://archive.apache.org/dist/maven/maven-3/3.6.1/binaries/apache-maven-3.6.1-bin.tar.gz</span><br><span class="line">[root@shkf6-245 src]# ls -l</span><br><span class="line">total 8924</span><br><span class="line">-rw-r--r-- 1 root root 9136463 Sep  4 00:54 apache-maven-3.6.1-bin.tar.gz</span><br><span class="line">[root@shkf6-245 src]# mkdir /data/nfs-volume/jenkins_home/maven-3.6.1-8u232     # 8u232是jenkins中java的版本</span><br><span class="line">[root@shkf6-245 src]# tar xf apache-maven-3.6.1-bin.tar.gz -C /data/nfs-volume/jenkins_home/maven-3.6.1-8u232</span><br><span class="line">[root@shkf6-245 src]# cd /data/nfs-volume/jenkins_home/maven-3.6.1-8u232</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 maven-3.6.1-8u232]# mv apache-maven-3.6.1 ../</span><br><span class="line">[root@shkf6-245 maven-3.6.1-8u232]# mv ../apache-maven-3.6.1/* .</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>设置国内镜像源</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# vi /data/nfs-volume/jenkins_home/maven-3.6.1-8u232/conf/settings.xml</span><br><span class="line">&lt;mirror&gt;</span><br><span class="line">  &lt;id&gt;alimaven&lt;/id&gt;</span><br><span class="line">  &lt;name&gt;aliyun maven&lt;/name&gt;</span><br><span class="line">  &lt;url&gt;http://maven.aliyun.com/nexus/content/groups/public/&lt;/url&gt;</span><br><span class="line">  &lt;mirrorOf&gt;central&lt;/mirrorOf&gt;        </span><br><span class="line">&lt;/mirror&gt;</span><br></pre></td></tr></table></figure>
+
+<p>实例：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">146   &lt;mirrors&gt;</span><br><span class="line">147     &lt;!-- mirror</span><br><span class="line">148      | Specifies a repository mirror site to use instead of a given repository. The repository that</span><br><span class="line">149      | this mirror serves has an ID that matches the mirrorOf element of this mirror. IDs are used</span><br><span class="line">150      | for inheritance and direct lookup purposes, and must be unique across the set of mirrors.</span><br><span class="line">151      |</span><br><span class="line">152     &lt;mirror&gt;</span><br><span class="line">153       &lt;id&gt;alimaven&lt;/id&gt;</span><br><span class="line">154       &lt;name&gt;aliyun maven&lt;/name&gt;</span><br><span class="line">155       &lt;url&gt;http://maven.aliyun.com/nexus/content/groups/public/&lt;/url&gt;</span><br><span class="line">156       &lt;mirrorOf&gt;central&lt;/mirrorOf&gt;</span><br><span class="line">157     &lt;/mirror&gt;</span><br><span class="line">158     &lt;mirror&gt;</span><br><span class="line">159       &lt;id&gt;mirrorId&lt;/id&gt;</span><br><span class="line">160       &lt;mirrorOf&gt;repositoryId&lt;/mirrorOf&gt;</span><br><span class="line">161       &lt;name&gt;Human Readable Name for this Mirror.&lt;/name&gt;</span><br><span class="line">162       &lt;url&gt;http://my.repository.com/repo/path&lt;/url&gt;</span><br><span class="line">163     &lt;/mirror&gt;</span><br><span class="line">164      --&gt;</span><br><span class="line">165   &lt;/mirrors&gt;</span><br></pre></td></tr></table></figure>
+
+<p>其他版本略</p>
+<h2 id="制作dubbo微服务的底包镜像"><a href="#制作dubbo微服务的底包镜像" class="headerlink" title="制作dubbo微服务的底包镜像"></a>制作dubbo微服务的底包镜像</h2><p>在运维主机shkf6-245.host.com上</p>
+<ol>
+<li>下载底包</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jre8]# docker pull sunrisenan/jre8:8u112</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 jre8]# docker images|grep jre</span><br><span class="line">sunrisenan/jre8                                   8u112                      fa3a085d6ef1        2 years ago         363MB</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 jre8]# docker tag fa3a085d6ef1 harbor.od.com/public/jre:8u112</span><br><span class="line">[root@shkf6-245 jre8]# docker push harbor.od.com/public/jre:8u112</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>自定义Dockerfile</li>
+</ol>
+<ul>
+<li>Dockerfile</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jre8]# pwd</span><br><span class="line">/data/dockerfile/jre8</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 jre8]# cat Dockerfile </span><br><span class="line">FROM harbor.od.com/public/jre:8u112</span><br><span class="line">RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &amp;&amp;\</span><br><span class="line">    echo 'Asia/Shanghai' &gt;/etc/timezone</span><br><span class="line">ADD config.yml /opt/prom/config.yml</span><br><span class="line">ADD jmx_javaagent-0.3.1.jar /opt/prom/</span><br><span class="line">WORKDIR /opt/project_dir</span><br><span class="line">ADD entrypoint.sh /entrypoint.sh</span><br><span class="line">CMD ["/entrypoint.sh"]</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>config.yml</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jre8]# cat config.yml </span><br><span class="line">---</span><br><span class="line">rules:</span><br><span class="line">  - pattern: '.*'</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 jre8]# wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar -O jmx_javaagent-0.3.1.jar</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>jmx_javaagent-0.3.1.jar</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jre8]# wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar -O jmx_javaagent-0.3.1.jar</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>vi entrypoint.sh (不要忘了给执行权限)</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jre8]# vi entrypoint.sh</span><br><span class="line">[root@shkf6-245 jre8]# chmod +x entrypoint.sh</span><br><span class="line">[root@shkf6-245 jre8]# cat entrypoint.sh </span><br><span class="line"><span class="meta">#</span><span class="bash">!/bin/sh</span></span><br><span class="line">M_OPTS="-Duser.timezone=Asia/Shanghai -javaagent:/opt/prom/jmx_javaagent-0.3.1.jar=$(hostname -i):$&#123;M_PORT:-"12346"&#125;:/opt/prom/config.yml"</span><br><span class="line">C_OPTS=$&#123;C_OPTS&#125;</span><br><span class="line">JAR_BALL=$&#123;JAR_BALL&#125;</span><br><span class="line">exec java -jar $&#123;M_OPTS&#125; $&#123;C_OPTS&#125; $&#123;JAR_BALL&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>制作dubbo服务docker底包</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 jre8]# pwd</span><br><span class="line">/data/dockerfile/jre8</span><br><span class="line">[root@shkf6-245 jre8]# ls -l</span><br><span class="line">total 372</span><br><span class="line">-rw-r--r-- 1 root root     29 Dec  4 09:50 config.yml</span><br><span class="line">-rw-r--r-- 1 root root    297 Dec  4 09:49 Dockerfile</span><br><span class="line">-rwxr-xr-x 1 root root    234 Dec  4 09:54 entrypoint.sh</span><br><span class="line">-rw-r--r-- 1 root root 367417 May 10  2018 jmx_javaagent-0.3.1.jar</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 jre8]# docker build . -t harbor.od.com/base/jre8:8u112</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 jre8]# docker push harbor.od.com/base/jre8:8u112</span><br></pre></td></tr></table></figure>
+
+<p>注意：jre7底包制作类似，这里略</p>
+<h1 id="交付dubbo微服务至kubernetes集群"><a href="#交付dubbo微服务至kubernetes集群" class="headerlink" title="交付dubbo微服务至kubernetes集群"></a>交付dubbo微服务至kubernetes集群</h1><h2 id="dubbo服务提供者（dubbo-demo-service）"><a href="#dubbo服务提供者（dubbo-demo-service）" class="headerlink" title="dubbo服务提供者（dubbo-demo-service）"></a>dubbo服务提供者（dubbo-demo-service）</h2><h3 id="通过jenkins进行一次CI"><a href="#通过jenkins进行一次CI" class="headerlink" title="通过jenkins进行一次CI"></a>通过jenkins进行一次CI</h3><p>打开jenkins页面，使用admin登录，准备构建<code>dubbo-demo</code>项目</p>
+<p><img src = "/images/m_9454d95ccceca6db81095028a1a3e1fc_r (1">.png”&gt;</p>
+<p>点<code>Build with Parameters</code></p>
+<img src = "/images/m_e5e8d9ac4a03cf7c428272a6f879dcd8_r.png">
+
+<p>依次填入/选择：</p>
+<p>app_name</p>
+<blockquote>
+<p>dubbo-demo-service</p>
+</blockquote>
+<p>image_name</p>
+<blockquote>
+<p>app/dubbo-demo-service</p>
+</blockquote>
+<p>git_repo</p>
+<blockquote>
+<p><a href="https://gitee.com/stanleywang/dubbo-demo-service.git" target="_blank" rel="noopener">https://gitee.com/stanleywang/dubbo-demo-service.git</a></p>
+</blockquote>
+<p>git_ver</p>
+<blockquote>
+<p>master</p>
+</blockquote>
+<p>add_tag</p>
+<blockquote>
+<p>191204_1942</p>
+</blockquote>
+<p>mvn_dir</p>
+<blockquote>
+<p>./</p>
+</blockquote>
+<p>target_dir</p>
+<blockquote>
+<p>./dubbo-server/target</p>
+</blockquote>
+<p>mvn_cmd</p>
+<blockquote>
+<p>mvn clean package -Dmaven.test.skip=true</p>
+</blockquote>
+<p>base_image</p>
+<blockquote>
+<p>base/jre8:8u112</p>
+</blockquote>
+<p>maven</p>
+<blockquote>
+<p>3.6.1-8u232</p>
+</blockquote>
+<p>点击<code>Build</code>进行构建，等待构建完成。</p>
+<p>test $? -eq 0 &amp;&amp; 成功，进行下一步 || 失败，排错直到成功</p>
+<h3 id="检查harbor仓库内镜像"><a href="#检查harbor仓库内镜像" class="headerlink" title="检查harbor仓库内镜像"></a>检查harbor仓库内镜像</h3><img src = "/images/m_38df9d1af4bf5370d6112ecfad084aff_r.png">
+
+<h3 id="准备k8s资源配置清单"><a href="#准备k8s资源配置清单" class="headerlink" title="准备k8s资源配置清单"></a>准备k8s资源配置清单</h3><p>运维主机shkf6-245.host.com上，准备资源配置清单：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# mkdir /data/k8s-yaml/dubbo-demo-service/</span><br><span class="line">[root@shkf6-245 ~]# cd /data/k8s-yaml/dubbo-demo-service/</span><br><span class="line">[root@shkf6-245 dubbo-demo-service]# vi /data/k8s-yaml/dubbo-demo-service/deployment.yaml</span><br><span class="line">[root@shkf6-245 dubbo-demo-service]# cat /data/k8s-yaml/dubbo-demo-service/deployment.yaml</span><br><span class="line">kind: Deployment</span><br><span class="line">apiVersion: extensions/v1beta1</span><br><span class="line">metadata:</span><br><span class="line">  name: dubbo-demo-service</span><br><span class="line">  namespace: app</span><br><span class="line">  labels: </span><br><span class="line">    name: dubbo-demo-service</span><br><span class="line">spec:</span><br><span class="line">  replicas: 1</span><br><span class="line">  selector:</span><br><span class="line">    matchLabels: </span><br><span class="line">      name: dubbo-demo-service</span><br><span class="line">  template:</span><br><span class="line">    metadata:</span><br><span class="line">      labels: </span><br><span class="line">        app: dubbo-demo-service</span><br><span class="line">        name: dubbo-demo-service</span><br><span class="line">    spec:</span><br><span class="line">      containers:</span><br><span class="line">      - name: dubbo-demo-service</span><br><span class="line">        image: harbor.od.com/app/dubbo-demo-service:master_191204_1942</span><br><span class="line">        ports:</span><br><span class="line">        - containerPort: 20880</span><br><span class="line">          protocol: TCP</span><br><span class="line">        env:</span><br><span class="line">        - name: JAR_BALL</span><br><span class="line">          value: dubbo-server.jar</span><br><span class="line">        imagePullPolicy: IfNotPresent</span><br><span class="line">      imagePullSecrets:</span><br><span class="line">      - name: harbor</span><br><span class="line">      restartPolicy: Always</span><br><span class="line">      terminationGracePeriodSeconds: 30</span><br><span class="line">      securityContext: </span><br><span class="line">        runAsUser: 0</span><br><span class="line">      schedulerName: default-scheduler</span><br><span class="line">  strategy:</span><br><span class="line">    type: RollingUpdate</span><br><span class="line">    rollingUpdate: </span><br><span class="line">      maxUnavailable: 1</span><br><span class="line">      maxSurge: 1</span><br><span class="line">  revisionHistoryLimit: 7</span><br><span class="line">  progressDeadlineSeconds: 600</span><br></pre></td></tr></table></figure>
+
+<h3 id="应用资源配置清单-1"><a href="#应用资源配置清单-1" class="headerlink" title="应用资源配置清单"></a>应用资源配置清单</h3><p>在任意一台k8s运算节点执行：</p>
+<ul>
+<li><p>创建kubernetes命名空间，私有仓库鉴权</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl create ns app</span><br><span class="line">namespace/app created</span><br><span class="line">[root@shkf6-243 ~]# kubectl create secret docker-registry harbor --docker-server=harbor.od.com --docker-username=admin --docker-password=Harbor12345 -n app</span><br><span class="line">secret/harbor created</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>应用资源配置清单</p>
+</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-service/deployment.yaml</span><br><span class="line">deployment.extensions/dubbo-demo-service created</span><br></pre></td></tr></table></figure>
+
+<h3 id="检查docker运行情况及zk里的信息"><a href="#检查docker运行情况及zk里的信息" class="headerlink" title="检查docker运行情况及zk里的信息"></a>检查docker运行情况及zk里的信息</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;opt&#x2F;zookeeper&#x2F;bin&#x2F;zkCli.sh</span><br><span class="line">[root@shkf6-243 ~]# &#x2F;opt&#x2F;zookeeper&#x2F;bin&#x2F;zkCli.sh -server localhost:2181</span><br><span class="line"></span><br><span class="line">[zk: localhost:2181(CONNECTED) 0] ls &#x2F;</span><br><span class="line">[dubbo, zookeeper]</span><br><span class="line"></span><br><span class="line">[zk: localhost:2181(CONNECTED) 1] ls &#x2F;dubbo</span><br><span class="line">[com.od.dubbotest.api.HelloService]</span><br></pre></td></tr></table></figure>
+
+<h2 id="dubbo-monitor工具"><a href="#dubbo-monitor工具" class="headerlink" title="dubbo-monitor工具"></a>dubbo-monitor工具</h2><p><a href="https://github.com/Jeromefromcn/dubbo-monitor" target="_blank" rel="noopener">dubbo-monitor源码</a></p>
+<h3 id="准备docker镜像"><a href="#准备docker镜像" class="headerlink" title="准备docker镜像"></a>准备docker镜像</h3><h4 id="下载源码并解压"><a href="#下载源码并解压" class="headerlink" title="下载源码并解压"></a>下载源码并解压</h4><p>下载到运维主机shkf6-245.host.com上</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# cd /opt/src/</span><br><span class="line">[root@shkf6-245 src]# wget -O /opt/src/dubbo-monitor-master.zip http://down.sunrisenan.com/dubbo-monitor/dubbo-monitor-master.zip</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 src]# yum install unzip -y</span><br><span class="line">[root@shkf6-245 src]# unzip dubbo-monitor-master.zip</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 src]# mv dubbo-monitor-master /data/dockerfile/dubbo-monitor</span><br><span class="line">[root@shkf6-245 src]# cd /data/dockerfile/dubbo-monitor</span><br></pre></td></tr></table></figure>
+
+<h4 id="修改配置"><a href="#修改配置" class="headerlink" title="修改配置"></a>修改配置</h4><ul>
+<li>修改dubbo-monitor主配置文件</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 dubbo-monitor]# vi dubbo-monitor-simple/conf/dubbo_origin.properties</span><br><span class="line">[root@shkf6-245 dubbo-monitor]# cat dubbo-monitor-simple/conf/dubbo_origin.properties</span><br><span class="line">dubbo.container=log4j,spring,registry,jetty</span><br><span class="line">dubbo.application.name=dubbo-monitor</span><br><span class="line">dubbo.application.owner=OldboyEdu</span><br><span class="line">dubbo.registry.address=zookeeper://zk1.od.com:2181?backup=zk2.od.com:2181,zk3.od.com:2181</span><br><span class="line">dubbo.protocol.port=20880</span><br><span class="line">dubbo.jetty.port=8080</span><br><span class="line">dubbo.jetty.directory=/dubbo-monitor-simple/monitor</span><br><span class="line">dubbo.charts.directory=/dubbo-monitor-simple/charts</span><br><span class="line">dubbo.statistics.directory=/dubbo-monitor-simple/statistics</span><br><span class="line">dubbo.log4j.file=logs/dubbo-monitor-simple.log</span><br><span class="line">dubbo.log4j.level=WARN</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>修改duboo-monitor启动脚本</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 dubbo-monitor]# sed -r -i -e '/^nohup/&#123;p;:a;N;$!ba;d&#125;'  ./dubbo-monitor-simple/bin/start.sh &amp;&amp; sed  -r -i -e "s%^nohup(.*)%exec \1%"  ./dubbo-monitor-simple/bin/start.sh</span><br><span class="line">    JAVA_MEM_OPTS=" -server -Xmx128g -Xms128g -Xmn32m -XX:PermSize=16m -Xss256k -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=70 "</span><br><span class="line">else</span><br><span class="line">    JAVA_MEM_OPTS=" -server -Xms128g -Xmx128g -XX:PermSize=16m -XX:SurvivorRatio=2 -XX:+UseParallelGC "</span><br><span class="line">fi</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>提示：记得最后的<code>&amp;</code>符删除掉</p>
+</blockquote>
+<p>示例：启动脚本完整配置</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 dubbo-monitor]# cat dubbo-monitor-simple/bin/start.sh</span><br><span class="line"><span class="meta">#</span><span class="bash">!/bin/bash</span></span><br><span class="line">sed -e "s/&#123;ZOOKEEPER_ADDRESS&#125;/$ZOOKEEPER_ADDRESS/g" /dubbo-monitor-simple/conf/dubbo_origin.properties &gt; /dubbo-monitor-simple/conf/dubbo.properties</span><br><span class="line">cd `dirname $0`</span><br><span class="line">BIN_DIR=`pwd`</span><br><span class="line">cd ..</span><br><span class="line">DEPLOY_DIR=`pwd`</span><br><span class="line">CONF_DIR=$DEPLOY_DIR/conf</span><br><span class="line"></span><br><span class="line">SERVER_NAME=`sed '/dubbo.application.name/!d;s/.*=//' conf/dubbo.properties | tr -d '\r'`</span><br><span class="line">SERVER_PROTOCOL=`sed '/dubbo.protocol.name/!d;s/.*=//' conf/dubbo.properties | tr -d '\r'`</span><br><span class="line">SERVER_PORT=`sed '/dubbo.protocol.port/!d;s/.*=//' conf/dubbo.properties | tr -d '\r'`</span><br><span class="line">LOGS_FILE=`sed '/dubbo.log4j.file/!d;s/.*=//' conf/dubbo.properties | tr -d '\r'`</span><br><span class="line"></span><br><span class="line">if [ -z "$SERVER_NAME" ]; then</span><br><span class="line">    SERVER_NAME=`hostname`</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">PIDS=`ps -f | grep java | grep "$CONF_DIR" |awk '&#123;print $2&#125;'`</span><br><span class="line">if [ -n "$PIDS" ]; then</span><br><span class="line">    echo "ERROR: The $SERVER_NAME already started!"</span><br><span class="line">    echo "PID: $PIDS"</span><br><span class="line">    exit 1</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">if [ -n "$SERVER_PORT" ]; then</span><br><span class="line">    SERVER_PORT_COUNT=`netstat -tln | grep $SERVER_PORT | wc -l`</span><br><span class="line">    if [ $SERVER_PORT_COUNT -gt 0 ]; then</span><br><span class="line">        echo "ERROR: The $SERVER_NAME port $SERVER_PORT already used!"</span><br><span class="line">        exit 1</span><br><span class="line">    fi</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">LOGS_DIR=""</span><br><span class="line">if [ -n "$LOGS_FILE" ]; then</span><br><span class="line">    LOGS_DIR=`dirname $LOGS_FILE`</span><br><span class="line">else</span><br><span class="line">    LOGS_DIR=$DEPLOY_DIR/logs</span><br><span class="line">fi</span><br><span class="line">if [ ! -d $LOGS_DIR ]; then</span><br><span class="line">    mkdir $LOGS_DIR</span><br><span class="line">fi</span><br><span class="line">STDOUT_FILE=$LOGS_DIR/stdout.log</span><br><span class="line"></span><br><span class="line">LIB_DIR=$DEPLOY_DIR/lib</span><br><span class="line">LIB_JARS=`ls $LIB_DIR|grep .jar|awk '&#123;print "'$LIB_DIR'/"$0&#125;'|tr "\n" ":"`</span><br><span class="line"></span><br><span class="line">JAVA_OPTS=" -Djava.awt.headless=true -Djava.net.preferIPv4Stack=true "</span><br><span class="line">JAVA_DEBUG_OPTS=""</span><br><span class="line">if [ "$1" = "debug" ]; then</span><br><span class="line">    JAVA_DEBUG_OPTS=" -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=n "</span><br><span class="line">fi</span><br><span class="line">JAVA_JMX_OPTS=""</span><br><span class="line">if [ "$1" = "jmx" ]; then</span><br><span class="line">    JAVA_JMX_OPTS=" -Dcom.sun.management.jmxremote.port=1099 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false "</span><br><span class="line">fi</span><br><span class="line">JAVA_MEM_OPTS=""</span><br><span class="line">BITS=`java -version 2&gt;&amp;1 | grep -i 64-bit`</span><br><span class="line">if [ -n "$BITS" ]; then</span><br><span class="line">    JAVA_MEM_OPTS=" -server -Xmx128g -Xms128g -Xmn32m -XX:PermSize=16m -Xss256k -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=70 "</span><br><span class="line">else</span><br><span class="line">    JAVA_MEM_OPTS=" -server -Xms128g -Xmx128g -XX:PermSize=16m -XX:SurvivorRatio=2 -XX:+UseParallelGC "</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">echo -e "Starting the $SERVER_NAME ...\c"</span><br><span class="line">exec  java $JAVA_OPTS $JAVA_MEM_OPTS $JAVA_DEBUG_OPTS $JAVA_JMX_OPTS -classpath $CONF_DIR:$LIB_JARS com.alibaba.dubbo.container.Main &gt; $STDOUT_FILE 2&gt;&amp;1</span><br></pre></td></tr></table></figure>
+
+<h4 id="制作镜像"><a href="#制作镜像" class="headerlink" title="制作镜像"></a>制作镜像</h4><ul>
+<li>准备Dockerfile</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 dubbo-monitor]# cat Dockerfile </span><br><span class="line">FROM jeromefromcn/docker-alpine-java-bash</span><br><span class="line">MAINTAINER Jerome Jiang</span><br><span class="line">COPY dubbo-monitor-simple/ /dubbo-monitor-simple/</span><br><span class="line">CMD /dubbo-monitor-simple/bin/start.sh</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>build镜像</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 dubbo-monitor]# docker build . -t harbor.od.com/infra/dubbo-monitor:latest</span><br><span class="line"></span><br><span class="line">[root@shkf6-245 dubbo-monitor]# docker push harbor.od.com/infra/dubbo-monitor:latest</span><br></pre></td></tr></table></figure>
+
+<h3 id="解析域名-1"><a href="#解析域名-1" class="headerlink" title="解析域名"></a>解析域名</h3><p>在DNS主机shkf6-241.hosts.com上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# tail -1 /var/named/od.com.zone </span><br><span class="line">dubbo-monitor      A    192.168.6.66</span><br></pre></td></tr></table></figure>
+
+<h3 id="准备k8s资源配置清单-1"><a href="#准备k8s资源配置清单-1" class="headerlink" title="准备k8s资源配置清单"></a>准备k8s资源配置清单</h3><p>运维主机shkf6-245.host.com上:</p>
+<ul>
+<li>创建目录</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# mkdir /data/k8s-yaml/dubbo-monitor</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>Deployment</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# vi /data/k8s-yaml/dubbo-monitor/dp.yaml</span><br><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/dubbo-monitor/dp.yaml</span><br><span class="line">kind: Deployment</span><br><span class="line">apiVersion: extensions/v1beta1</span><br><span class="line">metadata:</span><br><span class="line">  name: dubbo-monitor</span><br><span class="line">  namespace: infra</span><br><span class="line">  labels: </span><br><span class="line">    name: dubbo-monitor</span><br><span class="line">spec:</span><br><span class="line">  replicas: 1</span><br><span class="line">  selector:</span><br><span class="line">    matchLabels: </span><br><span class="line">      name: dubbo-monitor</span><br><span class="line">  template:</span><br><span class="line">    metadata:</span><br><span class="line">      labels: </span><br><span class="line">        app: dubbo-monitor</span><br><span class="line">        name: dubbo-monitor</span><br><span class="line">    spec:</span><br><span class="line">      containers:</span><br><span class="line">      - name: dubbo-monitor</span><br><span class="line">        image: harbor.od.com/infra/dubbo-monitor:latest</span><br><span class="line">        ports:</span><br><span class="line">        - containerPort: 8080</span><br><span class="line">          protocol: TCP</span><br><span class="line">        - containerPort: 20880</span><br><span class="line">          protocol: TCP</span><br><span class="line">        imagePullPolicy: IfNotPresent</span><br><span class="line">      imagePullSecrets:</span><br><span class="line">      - name: harbor</span><br><span class="line">      restartPolicy: Always</span><br><span class="line">      terminationGracePeriodSeconds: 30</span><br><span class="line">      securityContext: </span><br><span class="line">        runAsUser: 0</span><br><span class="line">      schedulerName: default-scheduler</span><br><span class="line">  strategy:</span><br><span class="line">    type: RollingUpdate</span><br><span class="line">    rollingUpdate: </span><br><span class="line">      maxUnavailable: 1</span><br><span class="line">      maxSurge: 1</span><br><span class="line">  revisionHistoryLimit: 7</span><br><span class="line">  progressDeadlineSeconds: 600</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>server</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# vi /data/k8s-yaml/dubbo-monitor/svc.yaml</span><br><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/dubbo-monitor/svc.yaml</span><br><span class="line">kind: Service</span><br><span class="line">apiVersion: v1</span><br><span class="line">metadata: </span><br><span class="line">  name: dubbo-monitor</span><br><span class="line">  namespace: infra</span><br><span class="line">spec:</span><br><span class="line">  ports:</span><br><span class="line">  - protocol: TCP</span><br><span class="line">    port: 8080</span><br><span class="line">    targetPort: 8080</span><br><span class="line">  selector: </span><br><span class="line">    app: dubbo-monitor</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>ingress</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# vi /data/k8s-yaml/dubbo-monitor/ingress.yaml</span><br><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/dubbo-monitor/ingress.yaml</span><br><span class="line">kind: Ingress</span><br><span class="line">apiVersion: extensions/v1beta1</span><br><span class="line">metadata: </span><br><span class="line">  name: dubbo-monitor</span><br><span class="line">  namespace: infra</span><br><span class="line">spec:</span><br><span class="line">  rules:</span><br><span class="line">  - host: dubbo-monitor.od.com</span><br><span class="line">    http:</span><br><span class="line">      paths:</span><br><span class="line">      - path: /</span><br><span class="line">        backend: </span><br><span class="line">          serviceName: dubbo-monitor</span><br><span class="line">          servicePort: 8080</span><br></pre></td></tr></table></figure>
+
+<h3 id="应用资源配置清单-2"><a href="#应用资源配置清单-2" class="headerlink" title="应用资源配置清单"></a>应用资源配置清单</h3><p>在任意一台k8s运算节点执行：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/dp.yaml</span><br><span class="line">deployment.extensions/dubbo-monitor created</span><br><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/svc.yaml</span><br><span class="line">service/dubbo-monitor created</span><br><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/ingress.yaml</span><br><span class="line">ingress.extensions/dubbo-monitor created</span><br></pre></td></tr></table></figure>
+
+<h3 id="浏览器访问-1"><a href="#浏览器访问-1" class="headerlink" title="浏览器访问"></a>浏览器访问</h3><p><a href="http://dubbo-monitor.od.com/" target="_blank" rel="noopener">http://dubbo-monitor.od.com</a></p>
+<img src = "/images/m_b54fbf8a32850059c621325f5fab81ca_r.png">
+
+<h2 id="dubbo服务消费者（dubbo-demo-consumer）"><a href="#dubbo服务消费者（dubbo-demo-consumer）" class="headerlink" title="dubbo服务消费者（dubbo-demo-consumer）"></a>dubbo服务消费者（dubbo-demo-consumer）</h2><h3 id="通过jenkins进行一次CI-1"><a href="#通过jenkins进行一次CI-1" class="headerlink" title="通过jenkins进行一次CI"></a>通过jenkins进行一次CI</h3><p>打开jenkins页面，使用admin登录，准备构建dubbo-demo项目</p>
+<img src = "/images/m_593391e6e785e8b874f83a1fca2d588c_r.png">
+
+<p>点<code>Build with Parameters</code></p>
+<img src = "/images/m_b8249fd0b079641297b6fa36ff189cea_r.png">
+
+<p>依次填入/选择：</p>
+<p>app_name</p>
+<blockquote>
+<p>dubbo-demo-consumer</p>
+</blockquote>
+<p>image_name</p>
+<blockquote>
+<p>app/dubbo-demo-consumer</p>
+</blockquote>
+<p>git_repo</p>
+<blockquote>
+<p><a href="mailto:git@gitee.com">git@gitee.com</a>:stanleywang/dubbo-demo-web.git</p>
+</blockquote>
+<p>git_ver</p>
+<blockquote>
+<p>master</p>
+</blockquote>
+<p>add_tag</p>
+<blockquote>
+<p>191205_1908</p>
+</blockquote>
+<p>mvn_dir</p>
+<blockquote>
+<p>./</p>
+</blockquote>
+<p>target_dir</p>
+<blockquote>
+<p>./dubbo-client/target</p>
+</blockquote>
+<p>mvn_cmd</p>
+<blockquote>
+<p>mvn clean package -e -q -Dmaven.test.skip=true</p>
+</blockquote>
+<p>base_image</p>
+<blockquote>
+<p>base/jre8:8u112</p>
+</blockquote>
+<p>maven</p>
+<blockquote>
+<p>3.6.1-8u232</p>
+</blockquote>
+<p>点击<code>Build</code>进行构建，等待构建完成。</p>
+<p>test $? -eq 0 &amp;&amp; 成功，进行下一步 || 失败，排错直到成功</p>
+<h3 id="检查harbor仓库内镜像-1"><a href="#检查harbor仓库内镜像-1" class="headerlink" title="检查harbor仓库内镜像"></a>检查harbor仓库内镜像</h3><img src = "/images/m_3eda79f023990bcca458c33cfbae815b_r.png">
+
+<h3 id="解析域名-2"><a href="#解析域名-2" class="headerlink" title="解析域名"></a>解析域名</h3><p>在DNS主机shkf6-241.host.com上：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-241 ~]# tail -1 /var/named/od.com.zone </span><br><span class="line">demo               A    192.168.6.66</span><br></pre></td></tr></table></figure>
+
+<h3 id="准备k8s资源配置清单-2"><a href="#准备k8s资源配置清单-2" class="headerlink" title="准备k8s资源配置清单"></a>准备k8s资源配置清单</h3><p>运维主机shkf6-245.host.com上，准备资源配置清单</p>
+<ul>
+<li>创建目录</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# mkdir /data/k8s-yaml/dubbo-demo-consumer</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>deployment</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# vi /data/k8s-yaml/dubbo-demo-consumer/dp.yaml</span><br><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/dubbo-demo-consumer/dp.yaml</span><br><span class="line">kind: Deployment</span><br><span class="line">apiVersion: extensions/v1beta1</span><br><span class="line">metadata:</span><br><span class="line">  name: dubbo-demo-consumer</span><br><span class="line">  namespace: app</span><br><span class="line">  labels: </span><br><span class="line">    name: dubbo-demo-consumer</span><br><span class="line">spec:</span><br><span class="line">  replicas: 1</span><br><span class="line">  selector:</span><br><span class="line">    matchLabels: </span><br><span class="line">      name: dubbo-demo-consumer</span><br><span class="line">  template:</span><br><span class="line">    metadata:</span><br><span class="line">      labels: </span><br><span class="line">        app: dubbo-demo-consumer</span><br><span class="line">        name: dubbo-demo-consumer</span><br><span class="line">    spec:</span><br><span class="line">      containers:</span><br><span class="line">      - name: dubbo-demo-consumer</span><br><span class="line">        image: harbor.od.com/app/dubbo-demo-consumer:master_191205_1908</span><br><span class="line">        ports:</span><br><span class="line">        - containerPort: 8080</span><br><span class="line">          protocol: TCP</span><br><span class="line">        - containerPort: 20880</span><br><span class="line">          protocol: TCP</span><br><span class="line">        env:</span><br><span class="line">        - name: JAR_BALL</span><br><span class="line">          value: dubbo-client.jar</span><br><span class="line">        imagePullPolicy: IfNotPresent</span><br><span class="line">      imagePullSecrets:</span><br><span class="line">      - name: harbor</span><br><span class="line">      restartPolicy: Always</span><br><span class="line">      terminationGracePeriodSeconds: 30</span><br><span class="line">      securityContext: </span><br><span class="line">        runAsUser: 0</span><br><span class="line">      schedulerName: default-scheduler</span><br><span class="line">  strategy:</span><br><span class="line">    type: RollingUpdate</span><br><span class="line">    rollingUpdate: </span><br><span class="line">      maxUnavailable: 1</span><br><span class="line">      maxSurge: 1</span><br><span class="line">  revisionHistoryLimit: 7</span><br><span class="line">  progressDeadlineSeconds: 600</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>service</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# vi /data/k8s-yaml/dubbo-demo-consumer/svc.yaml</span><br><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/dubbo-demo-consumer/svc.yaml</span><br><span class="line">kind: Service</span><br><span class="line">apiVersion: v1</span><br><span class="line">metadata: </span><br><span class="line">  name: dubbo-demo-consumer</span><br><span class="line">  namespace: app</span><br><span class="line">spec:</span><br><span class="line">  ports:</span><br><span class="line">  - protocol: TCP</span><br><span class="line">    port: 8080</span><br><span class="line">    targetPort: 8080</span><br><span class="line">  selector: </span><br><span class="line">    app: dubbo-demo-consumer</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>ingress</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-245 ~]# vi /data/k8s-yaml/dubbo-demo-consumer/ingress.yaml</span><br><span class="line">[root@shkf6-245 ~]# cat /data/k8s-yaml/dubbo-demo-consumer/ingress.yaml</span><br><span class="line">kind: Ingress</span><br><span class="line">apiVersion: extensions/v1beta1</span><br><span class="line">metadata: </span><br><span class="line">  name: dubbo-demo-consumer</span><br><span class="line">  namespace: app</span><br><span class="line">spec:</span><br><span class="line">  rules:</span><br><span class="line">  - host: demo.od.com</span><br><span class="line">    http:</span><br><span class="line">      paths:</span><br><span class="line">      - path: /</span><br><span class="line">        backend: </span><br><span class="line">          serviceName: dubbo-demo-consumer</span><br><span class="line">          servicePort: 8080</span><br></pre></td></tr></table></figure>
+
+<h3 id="应用资源配置清单-3"><a href="#应用资源配置清单-3" class="headerlink" title="应用资源配置清单"></a>应用资源配置清单</h3><p>在任意一台k8s运算节点执行：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/dp.yaml</span><br><span class="line">deployment.extensions/dubbo-demo-consumer created</span><br><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/svc.yaml</span><br><span class="line">service/dubbo-demo-consumer created</span><br><span class="line">[root@shkf6-243 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/ingress.yaml</span><br><span class="line">ingress.extensions/dubbo-demo-consumer created</span><br></pre></td></tr></table></figure>
+
+<h3 id="检查docker运行情况及dubbo-monitor"><a href="#检查docker运行情况及dubbo-monitor" class="headerlink" title="检查docker运行情况及dubbo-monitor"></a>检查docker运行情况及dubbo-monitor</h3><p><a href="http://dubbo-monitor.od.com/" target="_blank" rel="noopener">http://dubbo-monitor.od.com</a></p>
+<img src = "/images/m_e60e27ccda4d04ac6e91b006bf63331a_r.png">
+
+<h3 id="浏览器访问-2"><a href="#浏览器访问-2" class="headerlink" title="浏览器访问"></a>浏览器访问</h3><p><a href="http://demo.od.com/hello?name=sunrise" target="_blank" rel="noopener">http://demo.od.com/hello?name=sunrise</a></p>
+<img src = "/images/m_a515a2aec28885078f92a1e9192d9c95_r.png">
+
+<h2 id="实战维护dubbo微服务集群"><a href="#实战维护dubbo微服务集群" class="headerlink" title="实战维护dubbo微服务集群"></a>实战维护dubbo微服务集群</h2><ul>
+<li><p>更新（rolling update）</p>
+<ul>
+<li><p>修改代码提git（发版）</p>
+</li>
+<li><p>使用jenkins进行CI</p>
+</li>
+<li><p>修改并应用k8s资源配置清单</p>
+<blockquote>
+<p>或者在k8s的dashboard上直接操作</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>扩容（scaling）</p>
+<ul>
+<li>k8s的dashboard上直接操作</li>
+</ul>
+</li>
+</ul>
+<h2 id="k8s灾难性毁灭测试"><a href="#k8s灾难性毁灭测试" class="headerlink" title="k8s灾难性毁灭测试"></a>k8s灾难性毁灭测试</h2><p>运行中的集群在某天挂了一台</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# halt</span><br></pre></td></tr></table></figure>
+
+<p>这时访问业务会有短暂的 Bad Gateway</p>
+<p>1、K8S中移除坏的节点（这时会触发自愈机制）：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-244 ~]# kubectl delete node shkf6-243.host.com</span><br><span class="line">node "shkf6-243.host.com" deleted</span><br></pre></td></tr></table></figure>
+
+<p>2、这时需要判定负载均衡是否要移除节点<br>略。</p>
+<p>3、机器修复完，自动加入集群，打标签</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-244 ~]# kubectl label node shkf6-243.host.com node-role.kubernetes.io/master=</span><br><span class="line">node/shkf6-243.host.com labeled</span><br><span class="line">[root@shkf6-244 ~]# kubectl label node shkf6-243.host.com node-role.kubernetes.io/node=</span><br><span class="line">node/shkf6-243.host.com labeled</span><br></pre></td></tr></table></figure>
+
+<p>4、根据测试结果是要重启docker引擎的</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-243 ~]# systemctl restart docker</span><br></pre></td></tr></table></figure>
+
+<p>5、跟据情况平衡POD负载</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">[root@shkf6-244 ~]# kubectl get pods -n app</span><br><span class="line">NAME                                  READY   STATUS    RESTARTS   AGE</span><br><span class="line">dubbo-demo-consumer-5668798c5-86g7w   1/1     Running   0          26m</span><br><span class="line">dubbo-demo-consumer-5668798c5-p2n4f   1/1     Running   0          21h</span><br><span class="line">dubbo-demo-service-b4fd94448-j5lfx    1/1     Running   0          26m</span><br><span class="line">dubbo-demo-service-b4fd94448-jdtmd    1/1     Running   0          43h</span><br><span class="line"></span><br><span class="line">[root@shkf6-244 ~]# kubectl get pods -n app -o wide</span><br><span class="line">NAME                                  READY   STATUS    RESTARTS   AGE   IP             NODE                 NOMINATED NODE   READINESS GATES</span><br><span class="line">dubbo-demo-consumer-5668798c5-86g7w   1/1     Running   0          26m   172.6.244.9    shkf6-244.host.com   &lt;none&gt;           &lt;none&gt;</span><br><span class="line">dubbo-demo-consumer-5668798c5-p2n4f   1/1     Running   0          21h   172.6.244.7    shkf6-244.host.com   &lt;none&gt;           &lt;none&gt;</span><br><span class="line">dubbo-demo-service-b4fd94448-j5lfx    1/1     Running   0          26m   172.6.244.10   shkf6-244.host.com   &lt;none&gt;           &lt;none&gt;</span><br><span class="line">dubbo-demo-service-b4fd94448-jdtmd    1/1     Running   0          43h   172.6.244.5    shkf6-244.host.com   &lt;none&gt;           &lt;none&gt;</span><br><span class="line"></span><br><span class="line">[root@shkf6-244 ~]# kubectl delete pod dubbo-demo-consumer-5668798c5-86g7w -n app</span><br><span class="line">pod "dubbo-demo-consumer-5668798c5-86g7w" deleted</span><br><span class="line">[root@shkf6-244 ~]# kubectl delete pod dubbo-demo-service-b4fd94448-j5lfx -n app</span><br><span class="line">pod "dubbo-demo-service-b4fd94448-j5lfx" deleted</span><br></pre></td></tr></table></figure>
+
+<p>6、总结：</p>
+<p>1、删除k8s坏的node节点，这时故障自愈<br>2、注释掉坏负载均衡器上坏节点ip<br>3、修复好机器加入集群<br>4、打标签，平衡节点pods</p>
+</div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">PhenoGao</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://xonlab.com/2020/04/03/Kubernetes-dubbo%E9%83%A8%E7%BD%B2/">http://xonlab.com/2020/04/03/Kubernetes-dubbo%E9%83%A8%E7%BD%B2/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://xonlab.com" target="_blank">XonLab</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Docker/">Docker</a><a class="post-meta__tags" href="/tags/Kubernetes/">Kubernetes</a></div><div class="post_share"><div class="social-share" data-image="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-anni-roenkae-3418457.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"/><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js"></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2020/04/04/Kubernetes-Apollo%E9%83%A8%E7%BD%B2/"><img class="prev-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/2009affaf93af1f97df512c4fe77f989.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">Kubernetes-apollo部署</div></div></a></div><div class="next-post pull-right"><a href="/2020/04/02/%E3%80%8A%E5%A8%B1%E4%B9%90%E8%87%B3%E6%AD%BB%E3%80%8B3-4%E7%AB%A0/"><img class="next-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/de2a1ad249f7248d123b0a46d5faad9f.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">《娱乐至死》3~4章</div></div></a></div></nav><div class="relatedPosts"><div class="relatedPosts_headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts_list"><div class="relatedPosts_item"><a href="/2020/03/26/Docker基础知识汇编/" title="Docker基础知识汇编"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-1988692.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-03-26</div><div class="relatedPosts_title">Docker基础知识汇编</div></div></a></div><div class="relatedPosts_item"><a href="/2020/04/04/Kubernetes-Apollo部署/" title="Kubernetes-apollo部署"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/2009affaf93af1f97df512c4fe77f989.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-04-04</div><div class="relatedPosts_title">Kubernetes-apollo部署</div></div></a></div><div class="relatedPosts_item"><a href="/2020/04/15/Kubernetes-ELK部署/" title="Kubernetes-ELK部署"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/blue-white-material-design-4k-up.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-04-15</div><div class="relatedPosts_title">Kubernetes-ELK部署</div></div></a></div><div class="relatedPosts_item"><a href="/2020/04/09/Kubernetes-Prometheus部署/" title="Kubernetes-Prometheus部署"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/2009affaf93af1f97df512c4fe77f989.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-04-09</div><div class="relatedPosts_title">Kubernetes-Prometheus部署</div></div></a></div><div class="relatedPosts_item"><a href="/2020/03/28/Kubernetes部署Ⅰ/" title="Kubernetes部署 Ⅰ"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/blue-white-material-design-4k-up.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-03-28</div><div class="relatedPosts_title">Kubernetes部署 Ⅰ</div></div></a></div><div class="relatedPosts_item"><a href="/2020/04/01/Kubernetes部署-Ⅱ/" title="Kubernetes部署 Ⅱ"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/BlogPic/40-backgrounds-material.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2020-04-01</div><div class="relatedPosts_title">Kubernetes部署 Ⅱ</div></div></a></div></div></div></article></main><footer id="footer" data-type="color"><div id="footer-wrap"><div class="copyright">&copy;2018 - 2021 By PhenoGao</div></div></footer></div><section class="rightside" id="rightside"><div id="rightside-config-hide"><button id="readmode" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="font_plus" title="放大字体"><i class="fas fa-plus"></i></button><button id="font_minus" title="缩小字体"><i class="fas fa-minus"></i></button><button id="darkmode" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" title="设置"><i class="fas fa-cog"></i></button><button class="close" id="mobile-toc-button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></section><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script src="https://cdn.jsdelivr.net/npm/animejs@latest/anime.min.js"></script><script src="/js/third-party/fireworks.js"></script><script id="ribbon_piao" mobile="true" src="/js/third-party/piao.js"></script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module" defer></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js" async></script></body></html>
