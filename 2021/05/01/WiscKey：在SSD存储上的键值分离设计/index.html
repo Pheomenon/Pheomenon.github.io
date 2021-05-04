@@ -1,0 +1,240 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WiscKey：在SSD存储上的键值分离设计 | XonLab</title><meta name="description" content="Abstract我们展示了WiscKey，一个基于LSM树的持久键值存储，具有高性能的数据布局，将键和值分开，以最小化I&#x2F;O放大。WiscKey的设计是高度面向SSD优化的，利用了设备的顺序和随机性能特性。我们通过Benchmark和YCSB工作负载展示了WiscKey的优势。Benchmark结果显示，WiscKey加载数据库的速度比LevelDB快2.5×-111×，随机查找快1.6×-14×"><meta name="keywords" content="kv engine"><meta name="author" content="PhenoGao"><meta name="copyright" content="PhenoGao"><meta name="format-detection" content="telephone=no"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://xonlab.com/2021/05/01/WiscKey%EF%BC%9A%E5%9C%A8SSD%E5%AD%98%E5%82%A8%E4%B8%8A%E7%9A%84%E9%94%AE%E5%80%BC%E5%88%86%E7%A6%BB%E8%AE%BE%E8%AE%A1/"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin="crossorigin"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><meta property="og:type" content="article"><meta property="og:title" content="WiscKey：在SSD存储上的键值分离设计"><meta property="og:url" content="http://xonlab.com/2021/05/01/WiscKey%EF%BC%9A%E5%9C%A8SSD%E5%AD%98%E5%82%A8%E4%B8%8A%E7%9A%84%E9%94%AE%E5%80%BC%E5%88%86%E7%A6%BB%E8%AE%BE%E8%AE%A1/"><meta property="og:site_name" content="XonLab"><meta property="og:description" content="Abstract我们展示了WiscKey，一个基于LSM树的持久键值存储，具有高性能的数据布局，将键和值分开，以最小化I&#x2F;O放大。WiscKey的设计是高度面向SSD优化的，利用了设备的顺序和随机性能特性。我们通过Benchmark和YCSB工作负载展示了WiscKey的优势。Benchmark结果显示，WiscKey加载数据库的速度比LevelDB快2.5×-111×，随机查找快1.6×-14×"><meta property="og:image" content="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-1416367.jpg"><meta property="article:published_time" content="2021-05-01T12:01:22.000Z"><meta property="article:modified_time" content="2021-05-04T13:08:16.097Z"><meta name="twitter:card" content="summary"><script>var activateDarkMode = function () {
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000')
+  }
+}
+var activateLightMode = function () {
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fff')
+  }
+}
+
+var getCookies = function (name) {
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop().split(';').shift()
+}
+
+var autoChangeMode = 'false'
+var t = getCookies('theme')
+if (autoChangeMode === '1') {
+  var isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+  var isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+  var isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+  if (t === undefined) {
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport) {
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour <= 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+      if (Cookies.get('theme') === undefined) {
+        e.matches ? activateDarkMode() : activateLightMode()
+      }
+    })
+  } else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode === '2') {
+  now = new Date()
+  hour = now.getHours()
+  isNight = hour <= 6 || hour >= 18
+  if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if (t === 'dark') activateDarkMode()
+  else if (t === 'light') activateLightMode()
+}</script><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><link rel="prev" title="wisckey导读" href="http://xonlab.com/2021/05/02/wisckey%E5%AF%BC%E8%AF%BB/"><link rel="next" title="论文翻译|Efficient key-value stores with Ranged Log-structured Merge Trees" href="http://xonlab.com/2021/01/26/%E8%AE%BA%E6%96%87%E7%BF%BB%E8%AF%91Efficient%20key-value%20stores%20with%20Ranged/"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  bookmark: {
+    message_prev: '按',
+    message_next: '键将本页加入书签'
+  },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  justifiedGallery: {
+    js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+    css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+  },
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  isPhotoFigcaption: false,
+  islazyload: true,
+  isanchor: false    
+}</script><script>var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isSidebar: true
+  }</script><noscript><style>
+#nav {
+  opacity: 1
+}
+.justified-gallery img{
+  opacity: 1
+}
+</style></noscript><meta name="generator" content="Hexo 4.2.1"></head><body><canvas class="fireworks"></canvas><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="https://edu-102.oss-cn-beijing.aliyuncs.com/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">107</div></a></div></div><div class="mobile_data_item is-center">      <div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div><div class="length_num">69</div></a></div></div><div class="mobile_data_item is-center">     <div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div><div class="length_num">8</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div></div></div><i class="fas fa-arrow-right on" id="toggle-sidebar"></i><div id="sidebar"><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Abstract"><span class="toc-number">1.</span> <span class="toc-text">Abstract</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Introduction"><span class="toc-number">2.</span> <span class="toc-text">Introduction</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Background-and-Motivation"><span class="toc-number">3.</span> <span class="toc-text">Background and Motivation</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Log-Structured-Merge-Tree"><span class="toc-number">3.1.</span> <span class="toc-text">Log-Structured Merge-Tree</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#LevelDB"><span class="toc-number">3.2.</span> <span class="toc-text">LevelDB</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Write-and-Read-Amplification"><span class="toc-number">3.3.</span> <span class="toc-text">Write and Read Amplification</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Fast-Storage-Hardware"><span class="toc-number">3.4.</span> <span class="toc-text">Fast Storage Hardware</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#WiscKey"><span class="toc-number">4.</span> <span class="toc-text">WiscKey</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Design-Goals"><span class="toc-number">4.1.</span> <span class="toc-text">Design Goals</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Key-Value-Separation"><span class="toc-number">4.2.</span> <span class="toc-text">Key-Value Separation</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Challenge"><span class="toc-number">4.3.</span> <span class="toc-text">Challenge</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Parallel-Range-Query"><span class="toc-number">4.3.1.</span> <span class="toc-text">Parallel Range Query</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Garbage-Collection"><span class="toc-number">4.3.2.</span> <span class="toc-text">Garbage Collection</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Crash-Consistency"><span class="toc-number">4.3.3.</span> <span class="toc-text">Crash Consistency</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Optimization"><span class="toc-number">4.3.4.</span> <span class="toc-text">Optimization</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Value-Log-Write-Buffer"><span class="toc-number">4.3.4.1.</span> <span class="toc-text">Value-Log Write Buffer</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Optimizaing-the-LSM-tree-Log"><span class="toc-number">4.3.4.2.</span> <span class="toc-text">Optimizaing the LSM-tree Log</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Implementation"><span class="toc-number">4.3.5.</span> <span class="toc-text">Implementation</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Evaluation"><span class="toc-number">5.</span> <span class="toc-text">Evaluation</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Microbenchmarks"><span class="toc-number">5.1.</span> <span class="toc-text">Microbenchmarks</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Load-Performance"><span class="toc-number">5.1.1.</span> <span class="toc-text">Load Performance</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Query-Performance"><span class="toc-number">5.1.2.</span> <span class="toc-text">Query Performance</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Garbage-Collection-1"><span class="toc-number">5.1.3.</span> <span class="toc-text">Garbage Collection</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Crash-Consistency-1"><span class="toc-number">5.1.4.</span> <span class="toc-text">Crash Consistency</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Space-Amplification"><span class="toc-number">5.1.5.</span> <span class="toc-text">Space Amplification</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CPU-Usage"><span class="toc-number">5.1.6.</span> <span class="toc-text">CPU Usage</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#YCSB-Benchmarks"><span class="toc-number">5.2.</span> <span class="toc-text">YCSB Benchmarks</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Related-Work"><span class="toc-number">6.</span> <span class="toc-text">Related Work</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Conclusions"><span class="toc-number">7.</span> <span class="toc-text">Conclusions</span></a></li></ol></div></div></div><div id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-1416367.jpg)"><nav id="nav"><span class="pull-left" id="blog_name"><a class="blog_title" id="site-name" href="/">XonLab</a></span><span class="pull-right menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div><span class="toggle-menu close"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></span></span></nav><div id="post-info"><div id="post-title"><div class="posttitle">WiscKey：在SSD存储上的键值分离设计</div></div><div id="post-meta"><div class="meta-firstline"><time class="post-meta__date" title="发表于 2021-05-01 20:01:22"><i class="fa-fw far fa-calendar-alt"></i> 发表于 2021-05-01</time><span class="post-meta__categories"><span class="post-meta__separator">|</span><i class="fas fa-inbox fa-fw post-meta__icon"></i><a class="post-meta__categories" href="/categories/kv-engine/">kv engine</a></span></div><div class="meta-secondline"> <span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta__icon"></i><span>字数总计:</span><span class="word-count">13.6k</span><span class="post-meta__separator">|</span><i class="far fa-clock fa-fw post-meta__icon"></i><span>阅读时长: 42 分钟</span></span></div><div class="meta-thirdline"><span class="post-meta-pv-cv"><span class="post-meta__separator">|</span><i class="far fa-eye fa-fw post-meta__icon"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span><span class="post-meta-commentcount"></span></div></div></div></header><main class="layout_post" id="content-inner"><article id="post"><div class="post-content" id="article-container"><h1 id="Abstract"><a href="#Abstract" class="headerlink" title="Abstract"></a>Abstract</h1><p>我们展示了WiscKey，一个基于LSM树的持久键值存储，具有高性能的数据布局，将键和值分开，以最小化I/O放大。WiscKey的设计是高度面向SSD优化的，利用了设备的顺序和随机性能特性。我们通过Benchmark和YCSB工作负载展示了WiscKey的优势。Benchmark结果显示，WiscKey加载数据库的速度比LevelDB快2.5×-111×，随机查找快1.6×-14×。在所有六个YCSB工作负载中，WiscKey都比LevelDB和RocksDB快。</p>
+<h1 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h1><p>持久的键值存储在各种现代数据密集型应用中发挥关键作用，包括网络索引[16,48]、电子商务[24]、数据重复删除[7,22]、照片存储[12]、云数据[32]、社交网络[9,25,51]、在线游戏[23]、消息传递[1,29]、软件存储库[2]和广告[20]。通过支持高效的插入、点查找和范围查询，键值存储成为这些领域的基础技术。</p>
+<p>对于写密集型工作负载，基于日志结构合并树（LSM树）[43]的键值存储已经成为最先进的技术。基于LSM树构建的各种分布式和本地存储被广泛部署在大规模生产环境中，例如谷歌的BigTable[16]和LevelDB[48]、脸书的Cassandra[33]、HBase[29]和RocksDB[25]、雅虎的PNUTS[20]和Basho的Riak[4]。与其他索引结构（如B树）相比，LSM树的主要优势在于它们保持写入的顺序来落盘。B树上的小更新可能涉及许多随机写入，因此在SSD或HDD上效率都比较差。为了提供高写入性能，LSM树批处理键值对并按顺序写入。随后，为了实现高效的查找（对于单个键和范围查询），LSM树在后台连续读取、排序和写入键值对，从而按排序顺序维护键和值。因此，相同的数据在其整个生命周期中被多次读取和写入；正如我们在后面展示的（§2），典型LSM树中的这种I/O放大可以达到50倍或更高的倍数[39,54]。基于LSM的技术的成功与其在经典HDD（HDD）上的使用密切相关。在HDD中，随机I/O比顺序I/O慢100倍以上[43]；</p>
+<p>因此，执行额外的顺序读取和写入来持续排序key并实现高效查找是一个很好的权衡。然而，存储环境正在迅速变化，现代固态存储设备（SSD）正在许多重要的用例中取代HDDHDD相比，固态硬盘在性能和可靠性特性上有根本不同；在考虑键值存储系统设计时，我们认为以下三个差异至关重要。首先，随机和顺序性能之间的差异远没有HDD那么大；因此，执行大量顺序I/O以减少后来的随机I/O的LSM树可能会不必要地浪费带宽。其次，固态硬盘具有很大程度的内部并行性；构建在固态硬盘上的LSM必须精心设计以利用上述并行性[53]。第三，固态硬盘可能会通过重复写入[34,40]而快速减少寿命；LSM tree中的高写入放大会显著降低设备寿命。正如我们将在本文（§4）中展示的，这些因素的结合极大地影响了固态硬盘上的LSM树性能，降低了90%的吞吐量，增加了10倍以上的写入负载。虽然在LSM树下用固态硬盘替换HDD确实提高了性能，但使用当前的LSM树技术，固态硬盘的真正潜力在很大程度上没有体现。</p>
+<p>在这篇文章中，我们介绍了WiscKey，这是一个来自经典的LSMtree实现LevelDB的固态硬盘持久键值存储。WiscKey背后的<strong>核心思想是键和值的分离</strong>[42]；只有键被保存在LSM树中，而值被单独存储在日志中。换句话说，我们将WiscKey中的键排序和垃圾收集解耦，而LevelDB将它们捆绑在一起。这种简单的技术可以通过避免排序时不必要的值移动来显著减少写放大。此外，LSM树的大小明显减小，导致设备读取更少，查找时缓存更好。WiscKey保留了LSMtree技术的优势，包括出色的插入和查找性能，但没有过度的I/O放大。</p>
+<p>将键和值分开会带来许多挑战和机会。首先，范围查询（扫描）性能可能会受到影响，因为值不再按排序顺序存储。WiscKey通过使用SSD设备丰富的内部并行性来解决这一挑战。其次，WiscKey需要垃圾收集来回收无效值使用的空闲空间。WiscKey提出了一种在线轻量级垃圾收集器，它只涉及顺序输入/输出，对前台工作负载的影响最小。第三，分离键和值使故障的一致性恢复具有挑战性；WiscKey在现代文件系统中利用了一个有趣的属性，附加日志永远不会在崩溃时导致垃圾数据。WiscKey优化了性能，同时提供了与现代基于LSM的系统相同的一致性保证。</p>
+<p>我们将WiscKey的性能与LevelDB[48]和RocksDB[25]进行了比较，这是两种流行的LSMtree键值存储。对于大多数工作负载，WiscKey的性能明显更好。使用LevelDB自己的Benchmark，WiscKey加载数据库的速度比LevelDB快2.5×-111×，这取决于键值对的大小；对于随机查找，WiscKey比LevelDB快1.6×-14×。WiscKey的性能并不总是比标准的LSM树好；如果小vlaue以随机顺序写入，并且大规模数据集按顺序进行范围查询，WiscKey的性能比LevelDB差。然而，这个工作负载并不反映现实世界的用例（主要使用较短范围的查询），可以通过日志重组来改进。在反映真实用例的YCSB测试[21]下，WiscKey在所有六个YCSB工作负载中都比LevelDB和RocksDB快，并且遵循类似于负载和随机查找Benchmark的趋势。</p>
+<p>本文的其余部分组成如下。我们首先在第2节中描述背景和动机。第3节解释了WiscKey的设计，第4节分析了它的性能。我们在第5节简要描述了相关工作，并在第6节中总结</p>
+<h1 id="Background-and-Motivation"><a href="#Background-and-Motivation" class="headerlink" title="Background and Motivation"></a>Background and Motivation</h1><p>在本节中，我们首先描述了LSM-tree的概念。然后，我们解释了基于LSM-tree技术的流行键值存储库LevelDB的设计。我们研究了LevelDB中的读写放大。最后，我们描述了现代存储硬件的特点。</p>
+<h2 id="Log-Structured-Merge-Tree"><a href="#Log-Structured-Merge-Tree" class="headerlink" title="Log-Structured Merge-Tree"></a>Log-Structured Merge-Tree</h2><p>LSM树是一种持久结构，它为键值存储提供高效的索引，具有高插入和删除率[43]。它延迟的批处理数据写入大块，以使用HDD的高顺序带宽。由于随机写入比HDD上的顺序写入慢近两个数量级，LSM树提供了比传统B树更好的写入性能，传统B树需要随机访问。</p>
+<img src = "/images/levedb.png">
+
+<blockquote>
+<p>图1： LSM树和LevelDB体系结构。该图显示了标准的LSM树和LevelDB体系结构。对于LevelDB，插入键值对需要经过许多步骤：（1）日志文件；（2）Memtable；（3）不可变的Memtable；（4）L0中的SSTable；（5）压缩到更高的级别。</p>
+</blockquote>
+<p>LSM树由许多大小呈指数增长的组件组成，如图1所示，C0组件是驻留内存的就地更新排序树，而其他组件C1到Ck是驻留磁盘的仅追加B树。</p>
+<p>在LSM树的插入过程中，插入的键值对被append到顺序日志文件中，以便在崩溃时能够恢复。然后，键值对被添加到内存中的C0，该C0按键进行排序；C0允许对最近插入的键值对进行查找和扫描。一旦C0达到其大小限制，它将以类似于合并排序的方法与磁盘上的C1合并；这个过程被称为压缩。新合并的树将按顺序写入磁盘，取代旧版本的C1。压缩（即合并排序）也发生在磁盘组件上，当每个Ci达到其大小限制时。请注意，压缩仅在相邻级别（Ci和Ci+1）之间执行，它们可以在后台异步执行。</p>
+<p>为了执行查找操作，LSM树可能需要搜索多个组件。请注意，C0包含最新的数据，其次是C1，以此类推。因此，为了检索键值对，LSM树以级联方式搜索从C0开始的组件，直到它在最小的组件Ci中找到所需的数据。与B树相比，LSM树可能需要多次读取才能进行点查找。因此，当插入比查找更常见时，LSM树效率更高[43]。</p>
+<h2 id="LevelDB"><a href="#LevelDB" class="headerlink" title="LevelDB"></a>LevelDB</h2><p>LevelDB是受BigTable[16,48]启发的基于LSMtree的广泛使用的键值存储。LevelDB支持范围查询、快照和其他在现代应用程序中有用的特性。在本节中，我们简要描述了LevelDB的核心设计。</p>
+<p>LevelDB的总体架构如图1所示。LevelDB中的主要数据结构是一个磁盘日志文件、两个内存中排序的跳表（Memtable和不可变的Memtable）和七个级别（L0到L6）的磁盘上排序字符串表（SSTable）文件。LevelDB最初将插入的键值对存储在日志文件和内存中的Memtable中。一旦Memtable已满，LevelDB就切换到一个新的MemTable和日志文件来处理用户的剩余写入。在后台，以前的Memtable被转换成不可变的Memtable，然后一个压缩线程将其刷新到磁盘，在0级（L0）生成一个新的SSTable文件（通常约2MB）；以前的日志文件被丢弃。</p>
+<p>每个级别中所有文件的大小都是有限的，并且随着级别编号增加了十倍的倍数。例如，L1的所有文件的大小限制是10 MB，而L2的限制是100 MB。为了保持大小限制，一旦一个级别Li的总大小超过其限制，压缩线程将从Li中选择一个文件，与Li+1的所有重叠文件合并排序，并生成新的Li+1 SSTable文件。压缩线程将继续，直到所有级别都在其大小限制内。此外，在压缩过程中，LevelDB确保除了L0之外，特定级别的所有文件在其范围内不重叠；L0文件中的键可以相互重叠，因为它们是直接从Memtable刷新的。</p>
+<blockquote>
+<p>注: sstable 是按key排序的kv对数据文件,是否重叠的判断在于最大key与最小key的区间是否有重复</p>
+</blockquote>
+<p>为了执行查找操作，LevelDB首先搜索Memtable，然后搜索不可变的Memtable，然后按顺序搜索文件L0到L6。查找随机key所需的I/O次数以最大Level数为界，因为除了L0之外，单个级别内的文件之间不重叠。由于L0中的文件可能包含重叠的key，查找可能会在L0搜索多个文件。为了避免大的查找延迟，如果L0的文件数大于8个，LevelDB会减慢前台写入流量，以便等待压缩线程压缩从L0到L1的一些文件。</p>
+<h2 id="Write-and-Read-Amplification"><a href="#Write-and-Read-Amplification" class="headerlink" title="Write and Read Amplification"></a>Write and Read Amplification</h2><p>写和读放大是LevelDB等LSM树中的主要问题。写（读）放大被定义为写入（从）底层存储设备的数据量与用户请求的数据量之间的比率。在本节中，我们分析了LevelDB中的写和读放大。</p>
+<p>为了实现大部分是顺序的磁盘访问，LevelDB写入的数据比必要的多（尽管仍然是顺序的），即LevelDB具有很高的写入放大率。由于Li的大小限制是Li-1的10倍，当在压缩期间将一个文件从Li-1合并到Li时，LevelDB在最坏的情况下可能从Li读取多达10个文件，并在排序后将这些文件写回Li。因此，跨两个级别移动一个文件的写入放大率可以高达10。对于大型数据集，由于任何新生成的表文件最终都可以通过一系列压缩步骤从L0迁移到L6，所以写入放大可以超过50（L1到L6之间的每个间隙为10）。</p>
+<img src = "/images/50962750-debb-46b0-84e5-7a9e70aa12c9.png">
+
+<blockquote>
+<p>图2：写和读放大。该图显示了LevelDB对两种不同数据库大小的写放大和读放大，1 GB和100 GB。key大小为16 B，值大小为1 KB。</p>
+</blockquote>
+<p>由于设计中的权衡，读取放大一直是LSM树的主要问题。在LevelDB中，读取放大有两个来源。首先，要查找键值对，LevelDB可能需要检查多个级别。在最坏的情况下，LevelDB需要检查L0中的八个文件，其余六个级别中的每一个文件：总共14个文件。其次，要在SSTable文件中找到键值对，LevelDB需要读取文件中的多个元数据块。具体来说，实际读取的数据量是由（索引块+布隆过滤器块+数据块）给出的。例如，要查找1-KB键值对，LevelDB需要读取16-KB索引块、4-KB布隆过滤器块和4-KB数据块；总共24 KB。因此，考虑到最坏情况下的14个SSTable文件，LevelDB的读取放大率为24×14=336。较小的键值对将导致更高的读取放大率。</p>
+<p>为了测量实际使用LevelDB时看到的放大量，我们执行以下实验。我们首先用1-KB键值对加载数据库，然后从数据库中查找100,000个条目；我们使用两种不同的数据库大小进行初始加载，并从均匀分布中随机选择键。图2显示了加载阶段的写放大和查找阶段的读放大。对于1GB数据库，写放大为3.1，而对于100GB数据库，写放大增加到14。读取放大遵循同样的趋势:1GB数据库为8.2,100GB数据库为327。写入放大随着数据库大小而增加的原因很简单。随着更多的数据插入数据库，键值对更有可能沿着级别进一步移动；换句话说，当从低级别压缩到高级别时，LevelDB会多次写入数据。然而，写入放大并没有达到之前预测的最坏情况，因为在不同级别之间合并的文件的平均数量通常小于最坏情况下的10个。读取放大也会随着数据集的大小而增加，因为对于一个小数据库来说，SSTable文件中的所有索引块和布隆过滤器都可以缓存在内存中。然而，对于一个大数据库来说，每次查找都可能触及不同的SSTable文件，每次都要付出读取索引块和布隆过滤器的开销。</p>
+<img src = "/images/96ecdee5-b303-418f-b79c-aea1ed33346a.png">
+
+<blockquote>
+<p>图3： SSD上的顺序和随机读取。该图显示了现代SSD设备上各种请求大小的顺序和随机读取性能。所有请求都在ext4上的100-GB文件中。</p>
+</blockquote>
+<h2 id="Fast-Storage-Hardware"><a href="#Fast-Storage-Hardware" class="headerlink" title="Fast Storage Hardware"></a>Fast Storage Hardware</h2><p>许多现代服务器采用SSD设备来实现高性能。与HDD相似，随机写入在SSD[10、31、34、40]中也被认为是有害的，因为它们具有独特的擦除写入周期和昂贵的垃圾收集。虽然SSD设备的初始随机写入性能良好，但在使用预留块后，性能可能会显著下降。因此，避免随机写入的LSM树特性非常适合SSD；许多SSD优化的键值存储基于LSM树[25、50、53、54]。</p>
+<p>然而，与HDD不同，随机读取的相对性能（与顺序读取相比）在固态硬盘上明显更好；此外，当随机读取在固态硬盘中并发时，聚合吞吐量可以匹配某些工作负载的顺序吞吐量[17]。例如，图3显示了500-GB三星840 EVO固态硬盘对各种请求大小的顺序和随机读取性能。对于单个线程的随机读取，吞吐量随着请求大小而增加，达到256KB的顺序吞吐量的一半。当并发随机读取32个线程时，当大小大于16 KB时，聚合吞吐量与顺序吞吐量匹配。对于更高端的固态硬盘，并发随机读取和顺序读取之间的差距要小得多[3,39]。</p>
+<p>正如我们在本节中展示的，LSM树具有高写和读放大，这对于HDD来说是可以接受的。在高性能固态硬盘上使用LSM树可能会浪费很大一部分设备带宽，导致过多的写和读。在本文中，我们的目标是提高固态硬盘设备上LSM树的性能，以有效利用设备带宽。</p>
+<h1 id="WiscKey"><a href="#WiscKey" class="headerlink" title="WiscKey"></a>WiscKey</h1><p>上一节解释了LSM树如何通过增加I/O放大来保持顺序I/O访问。虽然顺序I/O访问和I/O放大之间的这种权衡对于传统硬盘来说是合理的，但对于使用SSD的现代硬件来说，它们并不是最佳的。在这一节中，我们介绍了WiscKey的设计，这是一个键值存储，可以最大限度地减少SSD上的I/O放大。</p>
+<p>为了实现SSD优化的键值存储，WiscKey包括四个关键思想。首先，WiscKey将键和值分开，只将键保留在LSM树中，将值保存在单独的日志文件中。其次，为了处理未排序的值（这需要在范围查询期间进行随机访问），WiscKey使用SSD设备的并行随机读取特性。第三，WiscKey利用独特的崩溃一致性和垃圾收集技术来有效管理值日志。最后，WiscKey通过删除LSM树日志而不牺牲一致性来优化性能，从而减少小写入带来的系统调用开销。</p>
+<h2 id="Design-Goals"><a href="#Design-Goals" class="headerlink" title="Design Goals"></a>Design Goals</h2><p>WiscKey是一个源自LevelDB的单机持久键值存储。它可以部署为关系数据库（如MySQL）或分布式键值存储（如MongoDB）的存储引擎。它提供与LevelDB相同的应用编程接口，包括放（键，值）、获取（键）、删除（键）和扫描（开始、结束）。WiscKey的设计遵循这些主要目标。</p>
+<p><strong>低写入放大</strong>。写入放大会引入额外不必要的<strong>写入。</strong>即使固态硬盘设备的带宽比HDD高，但大写入放大会消耗大部分写入带宽（超过90%并不少见），并由于有限的擦除周期而降低固态硬盘的寿命。因此，最大限度地减少写入放大非常重要，以提高工作负载性能和固态硬盘寿命。</p>
+<p><strong>低读取放大。</strong>大读取放大会导致两个问题。首先，通过为每次查找发出多次读取，查找的吞吐量会显著降低。其次，加载到内存中的大量数据会降低缓存的效率。WiscKey以小读取放大为目标来加速查找。</p>
+<p><strong>SSD优化。</strong>WiscKey通过将其I/O模式与SSD设备的性能特性相匹配，针对SSD设备进行了优化。具体而言，有效地利用了顺序写入和并行随机读取，以便应用程序能够充分利用设备的带宽。</p>
+<p><strong>功能丰富的应用编程接口。</strong>WiscKey旨在支持使LSM树流行的现代功能，如范围查询和快照。范围查询允许扫描连续的键值对序列。快照允许在特定时间捕获数据库的状态，然后对状态执行查找</p>
+<p><strong>现实的键值大小</strong>。在现代工作负载（例如，16 B）[7、8、11、22、35]中，键通常很小，尽管值大小可能变化很大（例如，100 B到大于4 KB）[6、11、22、28、32、49]。WiscKey旨在为这组现实的键值大小提供高性能。</p>
+<h2 id="Key-Value-Separation"><a href="#Key-Value-Separation" class="headerlink" title="Key-Value Separation"></a>Key-Value Separation</h2><p>LSM树的主要性能成本是合并过程，它不断地对SSTable文件进行排序。在压缩过程中，多个文件被读入内存、排序和写回，这可能会显著影响前台工作负载的性能。然而，排序是高效检索所必需的；使用排序，范围查询（即扫描）将主要导致对多个文件的顺序访问，而点查询将需要在每个级别访问最多一个文件。</p>
+<p>WiscKey的动机是一个简单的启示。压缩只需要对键进行排序，而值可以单独管理[42]。因为键通常比值小，所以只压缩键可以显著减少排序过程中所需的数据量。在WiscKey中，只有value的实际位置存储在键的LSM树中，而实际值以SSD友好的方式存储在其他地方。通过这种设计，对于给定大小的数据库，WiscKey的LSM树的大小比LevelDB小得多。较小的LSM树可以显著降低具有中等大值大小的现代工作负载的写放大。例如，假设一个16-B键，一个1-KB值，键的写放大为10（在LSM树中），WiscKey的有效写放大仅为（10×16+1024) / (16+1024）=1.14。除了提高应用程序的写性能，减少的写放大还通过需要更少的擦除周期来提高固态硬盘的寿命。</p>
+<img src = "/images/13632999-2fc06bf31bd5948f.webp">
+
+<p>WiscKey较小的读取放大提高了查找性能。在查找过程中，WiscKey首先在LSM树中搜索key和值的位置；一旦找到，将发出另一次读取来检索值。读者可能会认为WiscKey在查找方面会比LevelDB慢，因为它有额外的I/O来检索值。然而，由于WiscKey的LSM树比LevelDB小得多（对于相同的数据库大小），查找可能会在LSM树中搜索更少级别的表文件，并且LSM树的很大一部分可以很容易地缓存在内存中。因此，每次查找只需要一次随机读取（用于检索值），因此查找性能优于LevelDB。例如，假设16-B键和1-KB值，如果整个键值数据集的大小为100GB，那么LSM树的大小只有2GB左右（假设一个值的位置和大小需要12-B的成本），这可以很容易地缓存在内存超过100-GB的现代服务器中。</p>
+<p>WiscKey的体系结构如图4所示。key存储在LSM树中，而值存储在单独的值日志文件vLog中。value地址存在key的LSM树中。</p>
+<p>当用户在WiscKey中插入键值对时，该值首先被追加到vLog中，然后该键与该值的地址一起被插入到LSM树中（&lt;vLog-offset，value-size&gt;）删除一个键只需将其从LSM树中删除，而无需改变vLog。vLog中的所有有效值在LSM树中都有相应的键；vLog中的其他值无效，稍后将被回收（§3.3.2）。</p>
+<p>当用户查询key时，首先在LSM树中搜索该key，如果找到，则检索相应值的地址。然后，WiscKey从vLog中读取该值。请注意，此过程应用于点查询和范围查询。</p>
+<p>尽管键值分离背后的想法很简单，但它会带来以下小节中描述的许多挑战和优化机会。</p>
+<h2 id="Challenge"><a href="#Challenge" class="headerlink" title="Challenge"></a>Challenge</h2><p>键和值的分离使得范围查询需要随机的I/O。此外，这种分离使得垃圾收集和崩溃一致性都具有挑战性。我们现在解释如何解决这些挑战。</p>
+<h3 id="Parallel-Range-Query"><a href="#Parallel-Range-Query" class="headerlink" title="Parallel Range Query"></a>Parallel Range Query</h3><p>范围查询是现代键值存储的一个重要特征，允许用户扫描一系列键值对。关系数据库[26]、本地文件系统[30、46、50]，甚至分布式文件系统[37]使用键值存储作为其存储引擎，范围查询是这些环境中请求的核心API。</p>
+<p>对于范围查询，LevelDB为用户提供了一个基于迭代器的界面，带有Seek（key）、Next (), Prev (), Key（）和Value（）操作。要扫描一系列键值对，用户可以首先将Seek（）到起始键，然后调用Next（）或Prev（）逐个搜索键。要检索键或当前迭代器位置的值，用户可以分别调用Key（）或Value (), 。</p>
+<p>在LevelDB中，由于键和值存储在一起并排序，所以范围查询可以从SSTable文件中顺序读取键值对。然而，由于键和值单独存储在WiscKey中，范围查询需要随机读取，因此效率不高。正如我们在图3中看到的，SSD上单个线程的随机读取性能无法与顺序读取性能相匹配。然而，具有相当大请求大小的并行随机读取可以充分利用设备的内部并行性，获得与顺序读取类似的性能。</p>
+<p>为了提高范围查询的效率，WiscKey利用SSD设备的并行I/O特性在范围查询期间从vLog中预取值。其基本思想是，对于SSD，只有key需要特别关注才能有效检索。只要key被有效检索，范围查询就可以使用并行随机读取来有效检索值。</p>
+<p>预取框架可以很容易地与当前范围查询接口相匹配。在当前接口中，如果用户请求范围查询，则向用户返回迭代器。对于迭代器上请求的每个Next（）或Prev（），WiscKey跟踪范围查询的访问模式。一旦请求连续的键值对序列，WiscKey就开始依次从LSM树中读取key。从LSM树中检索的相应值地址被插入队列；多个线程将在后台并发地从vLog中获取这些value。</p>
+<h3 id="Garbage-Collection"><a href="#Garbage-Collection" class="headerlink" title="Garbage Collection"></a>Garbage Collection</h3><p>当键值对被删除或覆盖时，基于标准LSM树的键值存储不会立即回收空闲空间。相反，在压缩期间，如果找到与被删除或被覆盖的键值对相关的数据，数据将被丢弃，空间将被回收。在WiscKey中，只有无效的键才会被LSMtree压缩回收。由于WiscKey不压缩值，它需要一个特殊的垃圾收集器来回收vLog中的空闲空间。</p>
+<p>由于我们只将值存储在vLog文件（§3.2）中，从vLog中回收空闲空间的一个简单的方法是首先扫描LSM树以获得所有有效的值地址；然后，vLog中没有任何来自LSM树的有效引用的所有值都可以被视为无效并被回收。然而，这种方法太重量级了，只能用于离线垃圾收集。</p>
+<p>WiscKey的目标是一个轻量级的在线垃圾收集器。为了实现这一点，我们引入了对WiscKey基本数据布局的一个小改动：在vLog中存储值的同时，我们还将相应的key与值一起存储。新的数据布局如图5所示：元组（key大小、值大小、key、值）存储在vLog中。</p>
+<p>WiscKey的垃圾回收旨在将有效值（不对应于已删除的key）保留在vLog的连续区域中，如图5所示。该区域的一端，头，总是对应于vLog的末端，在那里新值将被追加。该区域的另一端，称为尾，是垃圾回收在触发时开始释放空间的地方。只有头和尾之间的vLog部分包含有效值，并且将在查找过程中进行搜索。</p>
+<p>在垃圾收集过程中，WiscKey首先从vLog的尾部读取一大块键值对（例如，几个MB），然后通过查询LSM树来找到这些值中哪些是有效的（尚未覆盖或删除）。WiscKey然后将有效值追加回vLog的头部。最后，它释放块之前占用的空间，并相应地更新尾部</p>
+<p>为了避免在垃圾收集过程中发生崩溃时丢失任何数据，WiscKey必须确保新添加的有效值和新尾部在实际释放空间之前在设备上是持久的。WiscKey通过以下步骤实现了这一点。将有效值追加到vLog后，垃圾收集在vLog上调用fsync（）。然后，它以异步方式将这些新值的地址和当前尾部添加到LSMtree；尾部存储在LSM树中，作为 &lt; “ tail “ , tail-vLog-offset&gt;。最后，回收vLog中的空闲空间。</p>
+<p>WiscKey可以配置为定期启动和持续垃圾收集，或者通过特定阈值触发。垃圾收集也可以在脱机模式下运行以进行维护。垃圾收集很少会在删除很少的工作负载和存储空间过度配置的环境中触发。</p>
+<img src = "/images/13632999-005a62692757cb84.webp">
+
+<h3 id="Crash-Consistency"><a href="#Crash-Consistency" class="headerlink" title="Crash Consistency"></a>Crash Consistency</h3><p>在系统崩溃时，LSM树实现通常保证插入的键值对的原子性和插入对的有序恢复。由于WiscKey的体系结构将值与LSM树分开存储，获得相同的崩溃保证可能看起来很复杂。然而，WiscKey通过使用现代文件系统的一个有趣属性（如ext4、btrfs和xfs）提供相同的崩溃保证。考虑一个包含字节序列b1b2b3… bn的文件，用户将序列bn+10亿+20亿+3… bn+m追加到其中。如果发生崩溃，在现代文件系统中的文件系统恢复后，文件将被观察到包含字节序列b1b2b3… bnbn+10亿+20亿+3… bn+x x</p>
+<p>当用户查询键值对时，如果WiscKey无法在LSM树中找到该键，因为该键在系统崩溃期间丢失了，WiscKey的行为与传统的LSM树完全相同：即使该值在崩溃前已在vLog中写入，以后也会被垃圾收集。然而，如果该键可以在LSM树中找到，则需要额外的步骤来保持一致性。在这种情况下，WiscKey首先验证从LSM树中检索的值地址是否在vLog的当前有效范围内，然后验证找到的值是否与查询的key相对应。如果验证失败，WiscKey假设值在系统崩溃期间丢失，从LSMtree中删除key，并通知用户未找到key。由于添加到vLog的每个值都有一个包括相应键的头，验证键和值是否匹配是直接的；如果需要，可以很容易地在头中添加一个magic number或校验和。如果用户特别要求同步插入，LSM树实现还能保证系统崩溃后键值对的用户持久性。WiscKey通过在执行同步插入到其LSM树之前刷新vLog来实现同步插入。</p>
+<img src = "/images/13632999-fc045e48695f2d8d.webp">
+
+<h3 id="Optimization"><a href="#Optimization" class="headerlink" title="Optimization"></a>Optimization</h3><p>在WiscKey中分离键和值提供了一个重新思考如何更新值日志以及LSM树日志的必要性的机会。我们现在描述这些机会如何提高性能。</p>
+<h4 id="Value-Log-Write-Buffer"><a href="#Value-Log-Write-Buffer" class="headerlink" title="Value-Log Write Buffer"></a>Value-Log Write Buffer</h4><p>对于每个write(), WiscKey需要通过使用write()系统调用将值追加到vLog中。然而，对于写入密集型工作负载，向文件系统发出大量小写入可能会引入明显的开销，尤其是在快速存储设备[15,44]上。图6显示了在ext4（Linux 3.14）中顺序写入10-GB文件的总时间。对于小写入，每个系统调用的开销显著聚集，导致长运行时间。通过大写入（大于4 KB），设备吞吐量将得到充分利用。</p>
+<p>为了减少开销，WiscKey会在用户空间缓冲区中缓冲值，并且只有当缓冲区大小超过阈值或用户请求同步插入时才会刷新缓冲区。因此，WiscKey只会发出大写入并减少write()系统调用的数量。为了查找，WiscKey首先搜索vLog缓冲区，如果没有找到，再去从vLog中读取。显然，这种机制可能会导致一些数据（被缓冲）在崩溃期间丢失；崩溃一致性保证类似于LevelDB。</p>
+<h4 id="Optimizaing-the-LSM-tree-Log"><a href="#Optimizaing-the-LSM-tree-Log" class="headerlink" title="Optimizaing the LSM-tree Log"></a>Optimizaing the LSM-tree Log</h4><p>如图1所示，日志文件通常用于LSMtree。LSM树跟踪日志文件中插入的键值对，这样，如果用户请求同步插入并且发生崩溃，可以在重新启动后扫描日志并恢复插入的键值对。</p>
+<p>在WiscKey中，LSM树仅用于键和值地址。此外，vLog还记录插入的键，以支持上一节所述的垃圾收集。因此，可以避免写入LSM树日志文件，而不会影响正确性。</p>
+<p>如果key在LSM树中持久化之前发生崩溃，可以通过扫描vLog来恢复它们。然而，直观的算法需要扫描整个vLog来恢复。因此，为了只需要扫描一小部分vLog，WiscKey定期在LSM树中记录vLog的头，作为键值对 &lt; “ head “ , head-vLog-offset&gt;。当打开数据库时，WiscKey从存储在LSM树中的最新头位置开始vLog扫描，并继续扫描直到vLog结束。由于头存储在LSM树中，并且LSM树固有地保证插入到LSM树中的键将按插入的顺序恢复，因此这种优化是崩溃一致的。因此，删除WiscKey的LSM树日志是一种安全的优化，并且提高了性能，特别是在有许多小插入的情况下。</p>
+<h3 id="Implementation"><a href="#Implementation" class="headerlink" title="Implementation"></a>Implementation</h3><p>WiscKey基于LevelDB 1.18。WiscKey在创建新数据库时创建一个vLog，并管理LSM树中的key和值地址。vLog由具有不同访问模式的多个组件在内部访问。例如，通过随机读取vLog来进行查找，而垃圾收集器则从尾部顺序读取并附加到vLog文件的头部。我们在不同的情况下使用posix_fadvise()来预先确定vLog的访问模式。</p>
+<p>对于范围查询，WiscKey维护一个包含32个线程的后台线程池。这些线程在线程安全队列中休眠，等待新的值地址到达。当触发预取时，WiscKey将固定数量的值地址插入工作队列，然后唤醒所有休眠线程。这些线程将开始并行读取值，自动将它们缓存在缓冲区缓存中。</p>
+<p>为了有效地垃圾收集vLog的可用空间，我们使用了现代文件系统的空洞功能（fallocate()）。 在文件中打空洞可以释放分配的物理空间，并允许WiscKey弹性使用存储空间。 现代文件系统上的最大文件大小足够大，以使WiscKey可以长时间运行而不会覆盖到文件的开头。 例如，最大文件大小在ext4上为64 TB，在xfs上为8 EB，在btrfs上为16 EB。 如果需要，可以将vLog轻松修改为循环日志。</p>
+<h1 id="Evaluation"><a href="#Evaluation" class="headerlink" title="Evaluation"></a>Evaluation</h1><p>在本节中，我们展示了展示WiscKey设计选择优势的评估结果。</p>
+<p>所有实验都在一台测试机器上运行，带有两台英特尔（R）至强（R）CPU E5-2667 <a href="mailto:v2@3.30GHz">v2@3.30GHz</a>处理器和64-GB内存。操作系统为64位Linux 3.14，使用的文件系统为ext4。使用的存储设备是500-GB三星840 EVO SSD，具有500MB/s顺序读取和400MB/s顺序写入最大性能。设备的随机读取性能如图3所示。</p>
+<h2 id="Microbenchmarks"><a href="#Microbenchmarks" class="headerlink" title="Microbenchmarks"></a>Microbenchmarks</h2><p>我们使用db工作台（LevelDB中的默认Benchmark）来评估LevelDB和WiscKey。我们总是使用16 B的key大小，但对不同的值大小进行实验。我们禁用数据压缩以更容易理解和分析性能。</p>
+<h3 id="Load-Performance"><a href="#Load-Performance" class="headerlink" title="Load Performance"></a>Load Performance</h3><p>我们现在描述顺序加载和随机加载Benchmark的结果。前者通过按顺序插入键来构建100-GB数据库，而后者按均匀分布的随机顺序插入键。请注意，顺序加载Benchmark不会在LevelDB或WiscKey中导致压缩，而随机加载Benchmark会导致压缩。</p>
+<p>图7显示了LevelDB和WiscKey在各种值大小下的顺序负载吞吐量：两个存储的吞吐量都随着值大小的增加而增加。但是，即使考虑最大值大小（256 KB），LevelDB的吞吐量也远远低于设备带宽。</p>
+<img src = "/images/13632999-2f735e0200134b26.webp">
+
+<p>为了进一步分析这一点，图8显示了在基准测试的每次运行中，在不同组件中花费的时间的分布，对于LevelDB来说；花费的时间分为三个主要部分：写入日志文件、插入Memtable和等待Memtable被刷新到设备。对于小键值对，写入日志文件占总时间的最大百分比。</p>
+<p>原因如图6所示。对于较大的键值，日志写入和Memtable排序更有效，而Memtable刷新是瓶颈。与LevelDB不同，WiscKey在值大小超过4 KB时达到了完整的设备带宽。由于它不写入LSM树日志，缓冲区附加到vLog中，即使对于较小的值，它也快3倍。</p>
+<p>图9显示了不同值大小的LevelDB和WiscKey的随机负载吞吐量。LevelDB的吞吐量范围从只有2 MB/s（64-B值大小）到4.1 MB/s（256-KB值大小），而WiscKey的吞吐量随着值大小而增加，在值大小大于4 KB后达到设备写入吞吐量的峰值。对于1-KB和4-KB值大小，WiscKey的吞吐量分别是LevelDB的46×和111×。LevelDB具有低吞吐量，因为压缩既消耗了很大比例的设备带宽，又减缓了前台写入（以避免LSM树的L0过载，如第2.2节所述）。在WiscKey中，压缩只引入了很小的开销，导致整个设备带宽得到有效利用。为了进一步分析这一点，图10显示了LevelDB和WiscKey的写放大LevelDB的写放大总是多于12，而当值大小达到1 KB时，WiscKey的写放大迅速下降到接近1，因为WiscKey的LSM树明显更小。</p>
+<img src = "/images/13632999-d8563c827897fb26.webp">
+
+<h3 id="Query-Performance"><a href="#Query-Performance" class="headerlink" title="Query Performance"></a>Query Performance</h3><p>我们现在比较LevelDB和WiscKey的随机查找（点查询）和范围查询性能。图11展示了100 GB随机加载数据库上100,000个操作的随机查找结果。尽管WiscKey中的随机查找需要同时检查LSM树和vLog，但WiscKey的吞吐量仍然比LevelDB好得多：对于1-KB值大小，WiscKey的吞吐量是LevelDB的12倍。对于大值大小，WiscKey的吞吐量仅受设备随机读取吞吐量的限制，如图3所示。由于第2.3节中提到的高读取放大，LevelDB的吞吐量较低。由于LSM树较小，读取放大较低，WiscKey的性能明显更好。WiscKey性能更好的另一个原因是WiscKey中的压缩过程不那么激烈，从而避免了许多后台读取和写入。</p>
+<img src = "/images/13632999-aeeb7929042726a9.webp">
+
+<p>图12显示了LevelDB和WiscKey的范围查询（扫描）性能。对于随机加载的数据库，LevelDB从不同级别读取多个文件，而WiscKey需要随机访问vLog（但是WiscKey利用并行随机读取）。从图12可以看出，LevelDB的吞吐量最初随着两个数据库的值大小而增加。</p>
+<p>但是，超过4 KB的值大小，因为一个SSTable文件只能存储少量的键值对，开销主要是打开许多SSTable文件，读取每个文件中的索引块和布隆过滤器。对于较大的键值对，WiscKey可以提供设备的顺序带宽，高达8.4×LevelDB。然而，对于64-B键值对，WiscKey的性能比LevelDB差12倍，因为对于较小的请求大小，设备的并行随机读取吞吐量有限；WiscKey的相对性能在并行随机读取吞吐量较高的高端固态硬盘上更好[3]。此外，这个工作负载代表了数据库随机填充和数据在vLog中未排序的最坏情况。</p>
+<p>图12还显示了数据排序时范围查询的性能，这对应于顺序加载的数据库；在这种情况下，LevelDB和WiscKey都可以顺序扫描数据。顺序加载的数据库的性能遵循与随机加载的数据库相同的趋势；对于64-B对，WiscKey慢25%，因为WiscKey从vLog中读取key和值（从而浪费带宽），但是对于大键值对，WiscKey快2.8倍。因此，对于小的键值对，随机加载数据库的日志重组（排序）可以使WiscKey的范围查询性能与LevelDB的性能相当。</p>
+<h3 id="Garbage-Collection-1"><a href="#Garbage-Collection-1" class="headerlink" title="Garbage Collection"></a>Garbage Collection</h3><p>我们现在调查WiscKey在后台执行垃圾收集时的性能。性能可能会根据垃圾收集期间找到的空闲空间百分比而变化，因为这会影响垃圾收集线程写入的数据量和释放的空间量。我们使用随机加载（受垃圾收集影响最大的工作负载）作为前台工作负载，并研究其在不同百分比空闲空间下的性能。我们的实验具体包括三个步骤：我们首先使用随机加载创建数据库，然后删除所需的键值对百分比，最后，我们运行随机加载工作负载并在后台进行垃圾收集时测量其吞吐量。我们使用4 KB的键值大小，并将可用空间的百分比从25%更改为100%。</p>
+<img src = "/images/13632999-7b5dfa28de914552.webp">
+
+<p>图13显示了结果：如果垃圾回收器读取的数据100%无效，则吞吐量仅降低10%。吞吐量仅略微降低，因为垃圾回收从vLog的尾部读取，并且只向头部写入有效的键值对；如果读取的数据完全无效，则不需要写入键值对。对于其他百分比的空闲空间，由于垃圾回收线程执行额外的写入，吞吐量下降了约35%。请注意，在所有情况下，当垃圾收集发生时，WiscKey至少比LevelDB快70倍。</p>
+<h3 id="Crash-Consistency-1"><a href="#Crash-Consistency-1" class="headerlink" title="Crash Consistency"></a>Crash Consistency</h3><p>将键与值分开需要额外的机制来保持崩溃一致性。我们通过使用ALICE工具[45]来验证WiscKey的崩溃一致性机制；该工具选择并模拟一组具有高暴露不一致性概率的系统崩溃。我们使用一个调用一些异步和同步open调用的测试用例。当配置为运行ext4、xfs和btrfs的测试时，ALICE会检查超过3000个选择的系统崩溃，并且不会报告WiscKey引入的任何一致性漏洞。</p>
+<p>新的一致性机制也会影响WiscKey在崩溃后的恢复时间，我们设计了一个实验来测量WiscKey和LevelDB的最坏情况恢复时间。LevelDB的恢复时间与其崩溃后日志文件的大小成正比；</p>
+<p>日志文件在内存表写入磁盘之前以最大大小存在。在恢复过程中，WiscKey首先从LSM树中检索头指针，然后从头指针中扫描vLog文件，直到文件结束。由于在写入内存表时更新的头指针会保留在磁盘上，所以WiscKey的最坏情况恢复时间也对应于在此之前发生的崩溃。我们测量了由到目前为止描述的情况引起的最坏情况恢复时间；对于1-KB值，LevelDB在崩溃后恢复数据库需要0.7秒，而WiscKey需要2.6秒。请注意，WiscKey可以配置为在必要时更频繁地保留头指针。</p>
+<h3 id="Space-Amplification"><a href="#Space-Amplification" class="headerlink" title="Space Amplification"></a>Space Amplification</h3><p>在评估键值存储时，以前的大多数工作只关注读写放大。然而，空间放大对于闪存设备很重要，因为与HDD相比，它们的每GB价格昂贵。空间放大是磁盘上数据库的实际大小与数据库逻辑大小的比率[5]。例如，如果1KB键值对在磁盘上占用4KB空间，那么空间放大是4。压缩减少了空间放大，而额外的数据（垃圾、碎片或元数据）增加了空间放大。禁用压缩以简化讨论。</p>
+<p>对于顺序加载工作负载，空间放大可以接近1，因为LSM树中的额外元数据是最小的。对于随机加载或覆盖工作负载，当无效对没有足够快地收集垃圾时，空间放大通常不止一个。</p>
+<p>图14显示了随机加载100-GB数据集后LevelDB和WiscKey的数据库大小（与图9相同的工作负载）。LevelDB的空间开销是由于工作负载完成时不被垃圾收集的无效键值对而产生的。WiscKey的空间开销包括无效键值对和额外的元数据（LSMtree中的指针和vLog中的元组，如图5所示）。垃圾回收后，当额外的元数据与值大小相比较小时，WiscKey的数据库大小接近逻辑数据库大小。</p>
+<img src = "/images/bb970a33-9479-4c7b-9c0e-8e549834e313.png">
+
+<blockquote>
+<p>图14：空间放大。该图显示了100 GB数据集随机负载工作负载下LevelDB和WiscKey的实际数据库大小。用户数据表示逻辑数据库大小。</p>
+</blockquote>
+<p>没有键值存储可以同时最小化读放大、写放大和空间放大。这三个因素之间的权衡在各种系统中是不同的。在LevelDB中，排序和垃圾收集耦合在一起。LevelDB用更高的写放大换取更低的空间放大；然而，工作负载性能会受到显著影响。WiscKey在工作负载运行时消耗更多的空间来最小化I/O放大；因为排序和垃圾收集在WiscKey中是解耦的，所以垃圾收集可以稍后进行，从而最大限度地减少其对前台性能的影响。</p>
+<h3 id="CPU-Usage"><a href="#CPU-Usage" class="headerlink" title="CPU Usage"></a>CPU Usage</h3><p>我们现在将研究前几节中显示的各种工作负载的LevelDB和WiscKey的CPU使用情况。这里显示的CPU使用情况包括应用程序和操作系统使用情况。</p>
+<p>如表1所示，对于顺序加载工作负载，LevelDB的CPU使用率更高。正如我们在图8中解释的那样，LevelDB花费大量时间向日志文件写入键值对。写入日志文件涉及对每个键值对进行编码，这具有很高的CPU成本。由于WiscKey作为优化删除了日志文件，因此WiscKey的CPU使用率低于LevelDB。对于范围查询工作负载，WiscKey使用32个后台线程来进行预取；因此，WiscKey的CPU使用率远高于LevelDB。</p>
+<p>我们发现CPU在我们的设置中并不是LevelDB和WiscKey的瓶颈。LevelDB的体系结构是基于单写协议的。后台压缩也只使用一个线程。RocksDB[25]探索了更好的多核并发设计。</p>
+<img src = "/images/bc9e0f02-eba4-4be5-842c-25ad2543841e.png">
+
+<blockquote>
+<p>图15： YCSB宏基准性能。该图显示了LevelDB、RocksDB和WiscKey对各种YCSB工作负载的性能。X轴对应于不同的工作负载，Y轴显示归一化为LevelDB性能的性能。每个条形图顶部的数字显示了实际实现的吞吐量（K ops/s）。（a）显示了1-KB值下的性能，（b）显示了16-KB值下的性能。负载工作负载对应于构建100-GB数据库，类似于随机负载Benchmark。Workload-A有50%的读取和50%的更新，Workload-B有95%的读取和5%的更新，Workload-C有100%的读取；key从Zipf中选择，更新操作在已经存在的key上。Workload-D涉及95%的读取和5%的插入新key（时间加权分布）。Workload-E涉及95%的范围查询和5%的插入新key（Zipf），而Workload-F有50%的读取和50%的读取-修改-写入（Zipf）。</p>
+</blockquote>
+<img src = "/images/13632999-36beb395ad842de0.webp">
+
+<h2 id="YCSB-Benchmarks"><a href="#YCSB-Benchmarks" class="headerlink" title="YCSB Benchmarks"></a>YCSB Benchmarks</h2><p>YCSB基准[21]为评估键值存储的性能提供了一个框架和六个工作负载的标准集。我们使用YCSB在100-GB数据库上比较LevelDB、RocksDB[25]和WiscKey。除了测量WiscKey的通常情况下的性能之外，我们还运行WiscKey，垃圾收集总是在后台进行，以便测量其最坏情况下的性能。RocksDB[25]是LevelDB的SSD优化版本，具有许多优化，包括多个内存表和用于压缩的背景线程。我们使用带有默认配置参数的RocksDB。我们用两种不同的值大小（1 KB和16 KB）评估了键值存储（数据压缩被禁用）。</p>
+<p>WiscKey的性能明显优于LevelDB和RocksDB，如图15所示。例如，在加载期间，对于1-KB值，WiscKey在通常情况下比其他数据库的性能快至少50倍，在最坏情况下（对于垃圾收集）至少快45倍；对于16-KB值，WiscKey的性能好104倍，即使在最坏情况下也是如此。</p>
+<p>对于读取，在大多数工作负载中使用的Zipf分布允许缓存和检索受欢迎的项目，而不会引起磁盘访问，从而降低了WiscKey相对于LevelDB和RocksDB的优势。因此，WiscKey在Workload-A（50%读取）中的相对性能（与LevelDB和RocksDB相比）比在Workload-B（95%读取）和Workload-C（100%读取）中要好。然而，RocksDB和LevelDB在这些工作负载中仍然没有与WiscKey的性能相匹配。</p>
+<p>WiscKey最坏的情况下的性能（垃圾收集总是打开，即使是只读工作负载）比LevelDB和RocksDB好。然而，垃圾收集对1-KB和16-KB值的性能的影响明显不同。垃圾收集重复选择和清理vLog的4MB块；对于较小的值，块将包括许多键值对，因此垃圾收集花更多的时间访问LSM树来验证每个对的有效性。对于较大的值，垃圾回收在验证上花费的时间更少，因此会积极地写入已清理的块，从而对前台吞吐量产生更大的影响。请注意，如果需要，可以限制垃圾回收以减少其对前台的影响。</p>
+<p>与之前考虑的Benchmark不同，Workload-E有多个小范围查询，每个查询检索1到100个键值对。由于工作负载涉及多个范围查询，访问每个范围中的第一个键将解决随机查找的问题——这对WiscKey来说是有利的。因此，即使对于1-KB的值，WiscKey的性能也优于RocksDB和LevelDB。</p>
+<h1 id="Related-Work"><a href="#Related-Work" class="headerlink" title="Related Work"></a>Related Work</h1><p>已经为SSD设备提出了各种基于哈希表的键值存储。FAWN[8]将键值对保存在SSD上的追加日志中，并使用内存哈希表索引进行快速查找。FlashStore[22]和SkimpyStash[23]遵循相同的设计，但优化了内存哈希表；FlashStore使用cuckoo哈希和紧凑的key签名，而SkimpyStash使用线性链接将表的一部分移动到SSD。BufferHash[7]使用多个内存中的哈希表，并使用布隆过滤器来选择要使用哪个哈希表进行查找。SILT[35]针对内存进行了高度优化，并使用了逻辑结构、哈希表和排序表布局的组合。WiscKey与这些键值存储共享日志结构数据布局。然而，这些存储使用哈希表进行索引，因此不支持在LSM树存储上构建的现代功能，例如范围查询或快照。WiscKey的目标是功能丰富的键值存储，可以在各种情况下使用。</p>
+<p>在优化原始LSM树键值存储[43]方面已经做了大量的工作。bLSM[49]提出了一个新的合并调度器来约束写入延迟，从而保持稳定的写入吞吐量，并使用布隆过滤器来提高性能。VT-tree[50]通过使用间接层，避免在压缩期间对任何以前排序的键值对进行排序。WiscKey直接将值与键分开，显著降低了写放大，而不管工作负载中的键分布如何。LOCS[53]将内部闪存通道暴露给LSM树键值存储，它可以利用丰富的并行性来实现更高效的压缩。Atlas[32]是一个基于ARM处理器的分布式键值存储，将键和值存储在不同的硬盘上。WiscKey是一个独立的键值存储，其中键和值之间的分离针对固态硬盘设备进行了高度优化，以实现显著的性能提升。LSM-trie[54]使用trie结构来组织键，并提出了基于trie的更高效的压缩；然而，这种设计牺牲了LSM-tree特性，例如对范围查询的高效支持。前面描述的RocksDB由于其设计与LevelDB基本相似，仍然表现出高写放大；RocksDB的优化与WiscKey的设计正交。</p>
+<p>Walnut[18]是一种混合对象存储，它将小对象存储在LSM树中，并将大对象直接写入文件系统。IndexFS[47]将其元数据存储在具有列样式模式的LSM树中，以加快插入的吞吐量。Purity[19]还通过仅对索引进行排序和按时间顺序存储元组来将其索引与数据元组分离。所有三个系统都使用类似于WiscKey的技术。然而，我们以更通用和完整的方式解决了这个问题，并在广泛的工作负载中优化了SSD设备的负载和查找性能。</p>
+<p>基于其他数据结构的键值存储也被提出。TokuDB[13,14]基于分形树索引，在内部节点中缓冲更新；key没有排序，为了获得良好的性能，必须在内存中维护一个大索引。ForestDB[6]使用HB+-trie来高效索引长key，提高了性能并减少了内部节点的空间开销。NVMKV[39]是一个FTL感知的键值存储，它使用本地FTL功能，如稀疏寻址和事务支持。将多个请求分组为单个操作的向量接口也被提出用于键值存储[52]。由于这些键值存储基于不同的数据结构，它们每个都有不同的与性能相关的权衡；相反，WiscKey建议改进广泛使用的LSM树结构。</p>
+<p>许多提出的技术试图克服内存中键值存储的可伸缩性瓶颈，如Mastree[38]、MemC3[27]、Memcache[41]、MICA[36]和cLSM[28]。这些技术可以适用于WiscKey以进一步提高其性能。</p>
+<h1 id="Conclusions"><a href="#Conclusions" class="headerlink" title="Conclusions"></a>Conclusions</h1><p>键值存储已经成为数据密集型应用中的基石。在本文中，我们提出了WiscKey，这是一种新颖的基于LSM树的键值存储，它将键和值分离以最小化写和读放大。WiscKey的数据布局和I/O模式针对SSD设备进行了高度优化。我们的结果表明，WiscKey可以显著提高大多数工作负载的性能。我们希望WiscKey中的键值分离和各种优化技术将用于未来一代高性能键值存储。</p>
+</div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">PhenoGao</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://xonlab.com/2021/05/01/WiscKey%EF%BC%9A%E5%9C%A8SSD%E5%AD%98%E5%82%A8%E4%B8%8A%E7%9A%84%E9%94%AE%E5%80%BC%E5%88%86%E7%A6%BB%E8%AE%BE%E8%AE%A1/">http://xonlab.com/2021/05/01/WiscKey%EF%BC%9A%E5%9C%A8SSD%E5%AD%98%E5%82%A8%E4%B8%8A%E7%9A%84%E9%94%AE%E5%80%BC%E5%88%86%E7%A6%BB%E8%AE%BE%E8%AE%A1/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://xonlab.com" target="_blank">XonLab</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/kv-engine/">kv engine</a></div><div class="post_share"><div class="social-share" data-image="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-nika-akin-3598435.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"/><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js"></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2021/05/02/wisckey%E5%AF%BC%E8%AF%BB/"><img class="prev-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-nika-akin-3598435.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">wisckey导读</div></div></a></div><div class="next-post pull-right"><a href="/2021/01/26/%E8%AE%BA%E6%96%87%E7%BF%BB%E8%AF%91Efficient%20key-value%20stores%20with%20Ranged/"><img class="next-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-1988692.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">论文翻译|Efficient key-value stores with Ranged Log-structured Merge Trees</div></div></a></div></nav><div class="relatedPosts"><div class="relatedPosts_headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts_list"><div class="relatedPosts_item"><a href="/2021/05/02/wisckey导读/" title="wisckey导读"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-nika-akin-3598435.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2021-05-02</div><div class="relatedPosts_title">wisckey导读</div></div></a></div></div></div></article></main><footer id="footer" data-type="color"><div id="footer-wrap"><div class="copyright">&copy;2018 - 2021 By PhenoGao</div></div></footer></div><section class="rightside" id="rightside"><div id="rightside-config-hide"><button id="readmode" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="font_plus" title="放大字体"><i class="fas fa-plus"></i></button><button id="font_minus" title="缩小字体"><i class="fas fa-minus"></i></button><button id="darkmode" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" title="设置"><i class="fas fa-cog"></i></button><button class="close" id="mobile-toc-button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></section><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script src="https://cdn.jsdelivr.net/npm/animejs@latest/anime.min.js"></script><script src="/js/third-party/fireworks.js"></script><script id="ribbon_piao" mobile="true" src="/js/third-party/piao.js"></script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module" defer></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js" async></script></body></html>

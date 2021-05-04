@@ -1,0 +1,247 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>wisckey导读 | XonLab</title><meta name="description" content="序现在普适性较强的适合磁盘的索引结构无非就是B-tree和LSM-tree，两种结构的最本质的不同在于，一个是就地更新（B-tree）一个是非就地更新（LSM-tree）。就地更新的索引结构拥有最好的读性能(随机读与顺序读)，而随机写性能很差，无法满足现实工业中的工作负载要求。而非就地更新的索引结构LSM-tree充分发挥顺序写入的高性能特性，成为写入密集的数据系统的基础。 在开始论述wiscke"><meta name="keywords" content="kv engine"><meta name="author" content="PhenoGao"><meta name="copyright" content="PhenoGao"><meta name="format-detection" content="telephone=no"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://xonlab.com/2021/05/02/wisckey%E5%AF%BC%E8%AF%BB/"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin="crossorigin"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><meta property="og:type" content="article"><meta property="og:title" content="wisckey导读"><meta property="og:url" content="http://xonlab.com/2021/05/02/wisckey%E5%AF%BC%E8%AF%BB/"><meta property="og:site_name" content="XonLab"><meta property="og:description" content="序现在普适性较强的适合磁盘的索引结构无非就是B-tree和LSM-tree，两种结构的最本质的不同在于，一个是就地更新（B-tree）一个是非就地更新（LSM-tree）。就地更新的索引结构拥有最好的读性能(随机读与顺序读)，而随机写性能很差，无法满足现实工业中的工作负载要求。而非就地更新的索引结构LSM-tree充分发挥顺序写入的高性能特性，成为写入密集的数据系统的基础。 在开始论述wiscke"><meta property="og:image" content="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-nika-akin-3598435.jpg"><meta property="article:published_time" content="2021-05-02T03:23:22.000Z"><meta property="article:modified_time" content="2021-05-04T13:08:30.752Z"><meta name="twitter:card" content="summary"><script>var activateDarkMode = function () {
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000')
+  }
+}
+var activateLightMode = function () {
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null) {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fff')
+  }
+}
+
+var getCookies = function (name) {
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop().split(';').shift()
+}
+
+var autoChangeMode = 'false'
+var t = getCookies('theme')
+if (autoChangeMode === '1') {
+  var isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+  var isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+  var isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+  if (t === undefined) {
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport) {
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour <= 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+      if (Cookies.get('theme') === undefined) {
+        e.matches ? activateDarkMode() : activateLightMode()
+      }
+    })
+  } else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode === '2') {
+  now = new Date()
+  hour = now.getHours()
+  isNight = hour <= 6 || hour >= 18
+  if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if (t === 'dark') activateDarkMode()
+  else if (t === 'light') activateLightMode()
+}</script><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><link rel="next" title="WiscKey：在SSD存储上的键值分离设计" href="http://xonlab.com/2021/05/01/WiscKey%EF%BC%9A%E5%9C%A8SSD%E5%AD%98%E5%82%A8%E4%B8%8A%E7%9A%84%E9%94%AE%E5%80%BC%E5%88%86%E7%A6%BB%E8%AE%BE%E8%AE%A1/"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  bookmark: {
+    message_prev: '按',
+    message_next: '键将本页加入书签'
+  },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  justifiedGallery: {
+    js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+    css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+  },
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  isPhotoFigcaption: false,
+  islazyload: true,
+  isanchor: false    
+}</script><script>var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isSidebar: true
+  }</script><noscript><style>
+#nav {
+  opacity: 1
+}
+.justified-gallery img{
+  opacity: 1
+}
+</style></noscript><meta name="generator" content="Hexo 4.2.1"></head><body><canvas class="fireworks"></canvas><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="https://edu-102.oss-cn-beijing.aliyuncs.com/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">107</div></a></div></div><div class="mobile_data_item is-center">      <div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div><div class="length_num">69</div></a></div></div><div class="mobile_data_item is-center">     <div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div><div class="length_num">8</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div></div></div><i class="fas fa-arrow-right on" id="toggle-sidebar"></i><div id="sidebar"><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#序"><span class="toc-number">1.</span> <span class="toc-text">序</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#LevelDB实现"><span class="toc-number">2.</span> <span class="toc-text">LevelDB实现</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#wisckey带来的新机遇"><span class="toc-number">3.</span> <span class="toc-text">wisckey带来的新机遇</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#数据布局"><span class="toc-number">3.1.</span> <span class="toc-text">数据布局</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#KV分离设计"><span class="toc-number">3.1.1.</span> <span class="toc-text">KV分离设计</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#随机查询"><span class="toc-number">3.2.</span> <span class="toc-text">随机查询</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#范围查询"><span class="toc-number">3.3.</span> <span class="toc-text">范围查询</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#随机-顺序写入"><span class="toc-number">3.4.</span> <span class="toc-text">随机&#x2F;顺序写入</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#合并压缩"><span class="toc-number">3.5.</span> <span class="toc-text">合并压缩</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#故障恢复"><span class="toc-number">3.6.</span> <span class="toc-text">故障恢复</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#优化与改进"><span class="toc-number">3.7.</span> <span class="toc-text">优化与改进</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#写缓冲区"><span class="toc-number">3.7.1.</span> <span class="toc-text">写缓冲区</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#空间放大率"><span class="toc-number">3.7.2.</span> <span class="toc-text">空间放大率</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#在线垃圾收集"><span class="toc-number">3.7.3.</span> <span class="toc-text">在线垃圾收集</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#小Value的存储"><span class="toc-number">3.7.4.</span> <span class="toc-text">小Value的存储</span></a></li></ol></li></ol></li></ol></div></div></div><div id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-nika-akin-3598435.jpg)"><nav id="nav"><span class="pull-left" id="blog_name"><a class="blog_title" id="site-name" href="/">XonLab</a></span><span class="pull-right menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div></div><span class="toggle-menu close"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></span></span></nav><div id="post-info"><div id="post-title"><div class="posttitle">wisckey导读</div></div><div id="post-meta"><div class="meta-firstline"><time class="post-meta__date" title="发表于 2021-05-02 11:23:22"><i class="fa-fw far fa-calendar-alt"></i> 发表于 2021-05-02</time><span class="post-meta__categories"><span class="post-meta__separator">|</span><i class="fas fa-inbox fa-fw post-meta__icon"></i><a class="post-meta__categories" href="/categories/kv-engine/">kv engine</a></span></div><div class="meta-secondline"> <span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta__icon"></i><span>字数总计:</span><span class="word-count">2.6k</span><span class="post-meta__separator">|</span><i class="far fa-clock fa-fw post-meta__icon"></i><span>阅读时长: 7 分钟</span></span></div><div class="meta-thirdline"><span class="post-meta-pv-cv"><span class="post-meta__separator">|</span><i class="far fa-eye fa-fw post-meta__icon"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span><span class="post-meta-commentcount"></span></div></div></div></header><main class="layout_post" id="content-inner"><article id="post"><div class="post-content" id="article-container"><h1 id="序"><a href="#序" class="headerlink" title="序"></a>序</h1><p>现在普适性较强的适合磁盘的索引结构无非就是B-tree和LSM-tree，两种结构的最本质的不同在于，一个是就地更新（B-tree）一个是非就地更新（LSM-tree）。就地更新的索引结构拥有最好的读性能(随机读与顺序读)，而随机写性能很差，无法满足现实工业中的工作负载要求。而非就地更新的索引结构LSM-tree充分发挥顺序写入的高性能特性，成为写入密集的数据系统的基础。</p>
+<p>在开始论述wisckey带来了什么改变之前，我们先回顾一下经典LSM-tree的实现。</p>
+<h1 id="LevelDB实现"><a href="#LevelDB实现" class="headerlink" title="LevelDB实现"></a>LevelDB实现</h1><p>前文提到LSM-tree的优势在于非就地更新，它的表现形式实际上就是延迟更新，顺序写入数据。但这样做也带来了很多问题。首先同一个key可能会占据多个存储空间，简单的解决方案就是每次读取的时候都是从后往前倒序的查找数据，这样保证了拿到的数据一定是最新的，该操作的复杂度为O（n）。优化该方案的手段就是后台对数据文件进行压缩，删去过时的数据。</p>
+<p>每次压缩的过程本质上是一次<strong>归并排序</strong>的过程(为了支持范围查询，以及空间压缩)，那么就需要找到所有分段文件中有<strong>重合范围</strong>的文件，进行合并(min_key与max_key)。并且不能合并一个正在写入的文件(假设按大小划分文件)。</p>
+<p>为了降低读取的复杂度，第一个想法就是<strong>利用内存</strong>，将最近最新写入的kv存储在内存数据结构中，红黑树，跳表等。 那么问题是何时将此数据结构dump到磁盘?最简单的是根据其大小的区别，然而在dump之前我们不能继续向其中写入数据，因此在内存中应该存在一个活跃内存表和一个不变内存表，二者相互交替，周期性的将不变内存表dump到内存中形成一个分段文件。</p>
+<p>但这还不够，依旧没有解决最先写入且从未更新的key要读取全量数据的问题，为解决这个问题LSM结构引入了<strong>分层设计</strong>的思想。将所有的kv文件分为c0-ck 共k+1层。c0层是直接从不变的内存表中dump下的结果。而c1-ck是发生过合并的文件。由于ci+1 是ci中具有重叠部分的文件合并的产物，因此可以说在同一层内是不存在重叠key的，因为重叠key已经在其上一层被合并了。那么只有c0层是可能存在重叠的文件的。所以当要读取磁盘上的数据时，最坏情况下只需要读取c0的所有文件以及c1-ck每一层中的一个文件即c0+k个文件即可找到key的位置，分层合并思想使得非就地更新索引在常数次的IO中读取数据。</p>
+<p>通常c0文件定义为2M，每一级比上一级大一个数量级的文件大小。所以高层的文件难以被一次性的加载到内存，因此需要一定的磁盘<strong>索引机制</strong>。我们对每个磁盘文件进行布局设计，分为元数据块，索引块，数据块三大块。元数据块中存储布隆过滤器快速的判断这个文件中是否存在某个key，同时通过对排序索引(通常缓存在内存中)二分查找定位key所在磁盘的位置。进而加速读取的速度，我们叫这种数据文件为SSTABLE(字符串排序表)。</p>
+<p>为了标记哪些SStable属于那一层因此要存在一个sstable的元数据管理文件，在levelDB中叫做MANIFEST文件。其中存储每一个sstable的文件名，所属的级别，最大与最小key的前缀。</p>
+<p>作为一个DB引擎，必须保证数据库进程崩溃前后的数据一致性，常见的做法就是使用<strong>预写日志</strong>。</p>
+<p>将所有的操作记录在一个仅追加的log文件中(称之为WAL)，所有的写入操作都要保证写入WAL成功后才能继续，因此当数据库崩溃后写入WAL的操作将被回溯，反之则被丢弃(只有写入WAL成功才会回复客户端ack)。那么从尾部重放这个WAL文件的操作即可恢复DB。</p>
+<p>但是这个过程由于会消耗磁盘的空间因此也需要不断的进行压缩，同时如果WAL过大也会使得数据库恢复的时间增大这是不可接受的，为此我们需要支持<strong>checkpint特性</strong>。</p>
+<p>综上我们得到了LSM Tree的实现，本质上他并非是一颗树他是一个整套算法的集合，本质上是一种思想，而非一种单一的数据结构，而对这种的一种经典实现即是<a href="https://github.com/google/leveldb" target="_blank" rel="noopener">LevelDB</a>。</p>
+<img src = "/images/levedb.png">
+
+<h1 id="wisckey带来的新机遇"><a href="#wisckey带来的新机遇" class="headerlink" title="wisckey带来的新机遇"></a>wisckey带来的新机遇</h1><p>wisckey将key与value分离存储，value仅存储在vlog中以仅追加的方式，而key存储在之前的lsm tree结构中。这样带来两个好处，第一不需要频繁移动vlaue的值，所以写放大减少，第二 lsm仅存储固定大小的key使得其存储占用变小，在内存中可以同时存储更多的key进而提高了缓存key的数量，间接的降低了读放大问题。</p>
+<p>对于随机读请求，固态硬盘远高于机械硬盘，而对于范围查询，由于真正的value都存储在vLog中因此是无序的，所以进行范围查询就是需要进行随机读取(先从lsm顺序读key再逐个随机读value)，这必然造成性能的下降，传统的随机读取是串行的难以发挥固态硬盘并行随机读取的特性，因此在wisckey中根据迭代器的调用方法<strong>prev,next</strong> 来从排序好的lsm中预读取一定的key到内存中，加速随机的范围查询性能，这种预先读取是异步进行的，充分发挥固态硬盘的并行读取性能。</p>
+<p>那么KV分离同时也带来许多问题，vLog文件会不断增大，那么就需要合并，如何合并才能保证对性能的影响最小化？同时由于移动了value的位置，LSM结构中维护的value的位置信息也要更新。数据具体如何布局？vLog日志如何拆分？wisckey崩溃后如何恢复才能保证数据的一致性呢?</p>
+<h2 id="数据布局"><a href="#数据布局" class="headerlink" title="数据布局"></a>数据布局</h2><img src = "/images/e6331b6b-30fe-45ae-bfb2-1a3001fb3d0a.png">
+
+<h3 id="KV分离设计"><a href="#KV分离设计" class="headerlink" title="KV分离设计"></a>KV分离设计</h3><ol>
+<li><blockquote>
+<p>在sstable文件中数据布局: <strong>&lt;key, addr(vlogName,offset,size)&gt;</strong></p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>在vlog文件中的数据布局:  <strong>&lt;keySize,valueSize,key,Value&gt;</strong></p>
+</blockquote>
+</li>
+</ol>
+<h2 id="随机查询"><a href="#随机查询" class="headerlink" title="随机查询"></a>随机查询</h2><ol>
+<li><blockquote>
+<p>先访问内存表是否命中key，如果找到地址信息判断是在内存中还是磁盘中(LRU缓存)</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>在内存中被缓存了value则直接返回，否则去磁盘中查找，根据vlog的名字找到具体的vlog文件</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>然后根据offset定位字节的首地址，根据size读取内容并返回</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>基于一定策略将整个vlog涉及的block缓存下来</p>
+</blockquote>
+</li>
+</ol>
+<h2 id="范围查询"><a href="#范围查询" class="headerlink" title="范围查询"></a>范围查询</h2><ol>
+<li><blockquote>
+<p>根据迭代器 next 还是 prev判断 是在游标之前读还是之后读，</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>预先读取一定的key，交由底层的线程池异步的取ssd中获取数据</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>将异步结果缓存在内存中 等到迭代器的调用</p>
+</blockquote>
+</li>
+</ol>
+<h2 id="随机-顺序写入"><a href="#随机-顺序写入" class="headerlink" title="随机/顺序写入"></a>随机/顺序写入</h2><ol>
+<li><blockquote>
+<p>将set操作先写入vlog日志中(存储key的作用之一就是既作为预写日志又作为值日志)</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>然后将返回的地址信息写入LSM中返回</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>返回写入成功</p>
+</blockquote>
+</li>
+</ol>
+<h2 id="合并压缩"><a href="#合并压缩" class="headerlink" title="合并压缩"></a>合并压缩</h2><ol>
+<li><blockquote>
+<p>vlog分为多个文件 其中存在一个活跃vlog文件 用于写入数据作为head地址</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>最先写入的的日志在最后的vlog中 存在tail地址</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>多个写入线程运行在head地址处追加日志</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>而只有一个后台线程执行垃圾收集运行在尾部</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>每次选择一个vlog文件的内容去lsm结构中随机查询(可并行化) 将没有失效的key重新写会到head地址处重新追加到vlog中</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>然后更新lsm中这些key的新地址</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>并释放老的vlog文件</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>这一过程中需要先将数据写入新的vlog文件后刷新到固态硬盘后异步更新索引</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>最后删除老文件 保证在此过程中进程崩溃造成数据丢失</p>
+</blockquote>
+</li>
+</ol>
+<h2 id="故障恢复"><a href="#故障恢复" class="headerlink" title="故障恢复"></a>故障恢复</h2><ol>
+<li><blockquote>
+<p>在wisckey的设计中预写日志就是值日志</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>因此引擎进程只需要定时保存 head和tail的地址即可</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>数据库恢复时需要获取崩溃前最新的地址然后从tail到head将日志进行redo即可</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>同时为了保证一致性在查询key时要做一些必要的一致性检查 </p>
+</blockquote>
+<ol>
+<li><blockquote>
+<p>当前key如果在tail与head索引范围外则忽略</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>当前位置上的值具有的key与查询的key不匹配则忽略</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>发生上述情况时，引擎直接返回错误信息</p>
+</blockquote>
+</li>
+</ol>
+</li>
+</ol>
+<h2 id="优化与改进"><a href="#优化与改进" class="headerlink" title="优化与改进"></a>优化与改进</h2><h3 id="写缓冲区"><a href="#写缓冲区" class="headerlink" title="写缓冲区"></a>写缓冲区</h3><p>为减少写入的系统调研次数，多个小key的写入会被缓存在内存中汇聚在一起统一的写入lsm的sstable中，但会优先写入vlog中当作预写日志处理。</p>
+<h3 id="空间放大率"><a href="#空间放大率" class="headerlink" title="空间放大率"></a>空间放大率</h3><p>数据存储的实际的大小与逻辑上的大小比值用来衡量空间放大情况，对于固态硬盘来说其价格昂贵，降低空间放大率会大大的节省存储成本。</p>
+<h3 id="在线垃圾收集"><a href="#在线垃圾收集" class="headerlink" title="在线垃圾收集"></a>在线垃圾收集</h3><p>GC过程会造成引擎的性能尖刺，通过并发的在线的分批次的进行GC操作来对前台读写性能影响。</p>
+<h3 id="小Value的存储"><a href="#小Value的存储" class="headerlink" title="小Value的存储"></a>小Value的存储</h3><p>经论文的测试数据value大于4KB时其读取性能才会有极大的提升，因此可以设置一个阈值，当value大于此阈值时才进行KV分离，而再次之前使用传统lsm-tree模式。</p>
+</div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">PhenoGao</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://xonlab.com/2021/05/02/wisckey%E5%AF%BC%E8%AF%BB/">http://xonlab.com/2021/05/02/wisckey%E5%AF%BC%E8%AF%BB/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://xonlab.com" target="_blank">XonLab</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/kv-engine/">kv engine</a></div><div class="post_share"><div class="social-share" data-image="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-nika-akin-3598435.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"/><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js"></script></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2021/05/01/WiscKey%EF%BC%9A%E5%9C%A8SSD%E5%AD%98%E5%82%A8%E4%B8%8A%E7%9A%84%E9%94%AE%E5%80%BC%E5%88%86%E7%A6%BB%E8%AE%BE%E8%AE%A1/"><img class="next-cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-1416367.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">WiscKey：在SSD存储上的键值分离设计</div></div></a></div></nav><div class="relatedPosts"><div class="relatedPosts_headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts_list"><div class="relatedPosts_item"><a href="/2021/05/01/WiscKey：在SSD存储上的键值分离设计/" title="WiscKey：在SSD存储上的键值分离设计"><img class="relatedPosts_cover" data-src="https://edu-102.oss-cn-beijing.aliyuncs.com/%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2/pexels-steve-johnson-1416367.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="far fa-calendar-alt fa-fw"></i> 2021-05-01</div><div class="relatedPosts_title">WiscKey：在SSD存储上的键值分离设计</div></div></a></div></div></div></article></main><footer id="footer" data-type="color"><div id="footer-wrap"><div class="copyright">&copy;2018 - 2021 By PhenoGao</div></div></footer></div><section class="rightside" id="rightside"><div id="rightside-config-hide"><button id="readmode" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="font_plus" title="放大字体"><i class="fas fa-plus"></i></button><button id="font_minus" title="缩小字体"><i class="fas fa-minus"></i></button><button id="darkmode" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside_config" title="设置"><i class="fas fa-cog"></i></button><button class="close" id="mobile-toc-button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></section><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script src="https://cdn.jsdelivr.net/npm/animejs@latest/anime.min.js"></script><script src="/js/third-party/fireworks.js"></script><script id="ribbon_piao" mobile="true" src="/js/third-party/piao.js"></script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module" defer></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js" async></script></body></html>
